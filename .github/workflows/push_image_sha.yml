@@ -1,4 +1,4 @@
-name: Publish Image Using Commit Hash
+name: Publish
 
 on:
   push:
@@ -6,18 +6,15 @@ on:
       - master
 
 jobs:
-  push:
+  publish:
     name: Publish Image
     runs-on: ubuntu-18.04
     steps:
-    - uses: actions/checkout@v2
-    - name: Push the image on the registry
-      uses: Ferlab-Ste-Justine/action-push-image@master
-      with:
-        username: chusj
-        password: ${{ secrets.DOCKER_HUB_TOKEN }}
-        image: chusj/arranger
-        tag_source: sha
-        location: .
-        dockerfile: Dockerfile
-      
+      - uses: actions/checkout@v2
+      - name: Log into registry
+        run: echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login -u chusj --password-stdin
+      - name: Build the arranger image
+        run: docker build -t chusj/arranger:$GITHUB_SHA --target server .
+        working-directory: .
+      - name: Push the arranger image
+        run: docker push chusj/arranger:$GITHUB_SHA
