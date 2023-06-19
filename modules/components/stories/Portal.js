@@ -1,18 +1,11 @@
 import React from 'react';
 import { storiesOf } from '@storybook/react';
-import { injectGlobal } from 'emotion';
+import { injectGlobal } from '@emotion/react';
 
-import { Arranger, GetProjects, Aggregations, CurrentSQON, Table } from '../src/Arranger';
+import { Arranger, Aggregations, SQONViewer, Table } from '../src';
 import State from '../src/State';
 import { StyleProvider, AVAILABLE_THEMES } from '../src/ThemeSwitcher';
-import {
-  PORTAL_NAME,
-  ACTIVE_INDEX,
-  ACTIVE_INDEX_NAME,
-  PROJECT_ID,
-  deleteValue,
-  setValue,
-} from '../src/utils/config';
+import { ACTIVE_INDEX, DOCUMENT_TYPE, deleteValue } from '../src/utils/config';
 
 injectGlobal`
   html,
@@ -46,77 +39,13 @@ const DemoHeader = ({ update }) => {
           cursor: pointer;
         `}
         onClick={() => {
-          deleteValue('PROJECT_ID');
           deleteValue('ACTIVE_INDEX');
           deleteValue('ACTIVE_INDEX_NAME');
-          update({ index: '', graphqlField: '', projectId: '' });
+          update({ index: '', documentType: '' });
         }}
       >
         Logout
       </div>
-    </div>
-  );
-};
-
-const ChooseProject = ({ index, projectId, update, projects }) => {
-  return (
-    <div
-      css={`
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        height: 100%;
-        justify-content: center;
-      `}
-    >
-      <h2
-        css={`
-          margin-top: 0;
-        `}
-      >
-        {PORTAL_NAME}
-      </h2>
-      <select
-        value={projectId}
-        onChange={(e) => {
-          setValue('PROJECT_ID', e.target.value);
-          update({
-            projectId: e.target.value,
-          });
-        }}
-      >
-        <option id="version">Select a version</option>
-        {projects.map((x) => (
-          <option key={x.id} value={x.id}>
-            {x.id}
-          </option>
-        ))}
-      </select>
-      <select
-        value={index}
-        onChange={(e) => {
-          setValue('ACTIVE_INDEX', e.target.value);
-
-          let graphqlField = projects
-            .find((x) => x.id === projectId)
-            ?.types?.types.find((x) => x.index === e.target.value).name;
-
-          setValue('ACTIVE_INDEX_NAME', graphqlField);
-          update({
-            index: e.target.value,
-            graphqlField,
-          });
-        }}
-      >
-        <option id="version">Select an index</option>
-        {projects
-          .find((x) => x.id === projectId)
-          ?.types?.types?.map((x) => (
-            <option key={x.index} value={x.index}>
-              {x.index}
-            </option>
-          ))}
-      </select>
     </div>
   );
 };
@@ -141,7 +70,7 @@ const Portal = ({ style, ...props }) => {
           flex-direction: column;
         `}
       >
-        <CurrentSQON {...props} />
+        <SQONViewer {...props} />
         <Table {...props} />
       </div>
     </div>
@@ -154,33 +83,27 @@ storiesOf('Portal', module).add('Portal', () => (
     <State
       initial={{
         index: ACTIVE_INDEX,
-        graphqlField: ACTIVE_INDEX_NAME,
-        projectId: PROJECT_ID,
+        documentType: DOCUMENT_TYPE,
       }}
-      render={({ index, graphqlField, projectId, update }) => {
-        return index && projectId ? (
+      render={({ index, documentType, update }) =>
+        index ? (
           <Arranger
             disableSocket
             index={index}
-            graphqlField={graphqlField}
-            projectId={projectId}
+            documentType={documentType}
             render={(props) => {
               return (
                 <>
                   <DemoHeader update={update} />
-                  <Portal {...{ ...props, graphqlField, projectId }} />
+                  <Portal {...{ ...props, documentType }} />
                 </>
               );
             }}
           />
         ) : (
-          <GetProjects
-            render={(props) => (
-              <ChooseProject {...props} index={index} projectId={projectId} update={update} />
-            )}
-          />
-        );
-      }}
+          <div>No index available</div>
+        )
+      }
     />
   </>
 ));

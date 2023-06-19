@@ -1,0 +1,14 @@
+{
+	"compilerOptions": {
+		"allowJs": true
+	},
+	"include": [
+		".eslintrc.js",
+		"prettier.config.js",
+		"modules/**/.eslintrc.js",
+		"modules/**/*",
+		"**/*.json",
+		"integration-tests/**/*test.js",
+		"integration-tests/**/*test.ts"
+	]
+}

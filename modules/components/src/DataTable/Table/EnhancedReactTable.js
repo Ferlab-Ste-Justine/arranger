@@ -1,9 +1,7 @@
-import React from 'react';
 import { compose } from 'recompose';
-
-import ReactTable from 'react-table';
-import checkboxHOC from 'react-table/lib/hoc/selectTable';
-import 'react-table/react-table.css';
+import ReactTable from 'react-table-old';
+import checkboxHOC from 'react-table-old/lib/hoc/selectTable';
+import 'react-table-old/react-table.css';
 
 const defaultSelectInputComponent = (props) => {
   return (

@@ -1,7 +1,10 @@
 import React from 'react';
 import Component from 'react-component-component';
-import FaChevronDown from 'react-icons/lib/fa/chevron-down';
-import FaChevronUp from 'react-icons/lib/fa/chevron-up';
+import { FaChevronDown, FaChevronUp } from 'react-icons/fa';
+import { Tooltip } from 'react-tippy';
+import 'react-tippy/dist/tippy.css';
+
+import ClickAwayListener from '../../utils/ClickAwayListener.js';
 import {
   DisplayNameMapContext,
   getOperationAtPath,
@@ -9,12 +12,9 @@ import {
   RANGE_OPS,
 } from '../utils';
 import FieldOpModifier from '../filterComponents/index';
-import ClickAwayListener from '../../utils/ClickAwayListener.js';
+import defaultApiFetcher from '../../utils/api';
+
 import { PillRemoveButton } from './common';
-import { PROJECT_ID } from '../../utils/config';
-import defaultApi from '../../utils/api';
-import 'react-tippy/dist/tippy.css';
-import { Tooltip } from 'react-tippy';
 
 export default (props) => {
   const {
@@ -23,10 +23,9 @@ export default (props) => {
     fullSyntheticSqon,
     sqonPath = [],
     opDisplayNameMap = FIELD_OP_DISPLAY_NAME,
-    arrangerProjectId = PROJECT_ID,
-    arrangerProjectIndex,
+    arrangerIndex,
     FieldOpModifierContainer = undefined,
-    api = defaultApi,
+    apiFetcher = defaultApiFetcher,
     getActiveExecutableSqon,
   } = props;
 
@@ -75,8 +74,7 @@ export default (props) => {
                 {s.state.isOpen && (
                   <div className={`fieldFilterContainer`}>
                     <FieldOpModifier
-                      arrangerProjectId={arrangerProjectId}
-                      arrangerProjectIndex={arrangerProjectIndex}
+                      arrangerIndex={arrangerIndex}
                       field={field}
                       sqonPath={sqonPath}
                       initialSqon={fullSyntheticSqon}
@@ -86,7 +84,7 @@ export default (props) => {
                       opDisplayNameMap={opDisplayNameMap}
                       ContainerComponent={FieldOpModifierContainer}
                       getExecutableSqon={getActiveExecutableSqon}
-                      api={api}
+                      apiFetcher={apiFetcher}
                     />
                   </div>
                 )}

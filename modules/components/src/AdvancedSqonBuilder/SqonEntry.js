@@ -1,22 +1,15 @@
 import React from 'react';
 import Component from 'react-component-component';
-import FaRegClone from 'react-icons/lib/fa/clone';
-import FaTrashAlt from 'react-icons/lib/fa/trash';
+import { FaRegClone, FaTrashAlt } from 'react-icons/fa';
+
+import defaultApiFetcher from '../utils/api';
+
 import BooleanOp from './sqonPieces/BooleanOp';
-import {
-  isBooleanOp,
-  removeSqonPath,
-  setSqonAtPath,
-  doesContainReference,
-  isEmptySqon,
-} from './utils';
-import { PROJECT_ID } from '../utils/config';
-import defaultApi from '../utils/api';
+import { isBooleanOp, removeSqonPath, setSqonAtPath, isEmptySqon } from './utils';
 
 export default (props) => {
   const {
-    arrangerProjectId = PROJECT_ID,
-    arrangerProjectIndex,
+    arrangerIndex,
     syntheticSqon,
     getActiveExecutableSqon,
     SqonActionComponent = ({ sqonIndex, isActive, isSelected }) => null,
@@ -24,7 +17,7 @@ export default (props) => {
     isSelected = false,
     index = 0,
     FieldOpModifierContainer = undefined,
-    api = defaultApi,
+    apiFetcher = defaultApiFetcher,
     disabled = false,
     getColorForReference = (index) => '',
     isReferenced = false,
@@ -87,14 +80,13 @@ export default (props) => {
                   ? emptyEntryMessage
                   : isBooleanOp(syntheticSqon) && (
                       <BooleanOp
-                        arrangerProjectId={arrangerProjectId}
-                        arrangerProjectIndex={arrangerProjectIndex}
+                        arrangerIndex={arrangerIndex}
                         index={0}
                         onFieldOpRemove={onFieldOpRemove}
                         onChange={onLogicalOpChanged}
                         sqon={syntheticSqon}
                         FieldOpModifierContainer={FieldOpModifierContainer}
-                        api={api}
+                        apiFetcher={apiFetcher}
                         getActiveExecutableSqon={getActiveExecutableSqon}
                         getColorForReference={getColorForReference}
                         isIndexReferenced={isIndexReferenced}

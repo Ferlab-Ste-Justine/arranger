@@ -2,7 +2,10 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { cloneDeep } from 'lodash';
 import Component from 'react-component-component';
-import { PROJECT_ID } from '../utils/config';
+import { FaPlusCircle, FaRegClone } from 'react-icons/fa';
+
+import defaultApiFetcher from '../utils/api';
+
 import SqonEntry from './SqonEntry';
 import {
   resolveSyntheticSqon,
@@ -15,9 +18,6 @@ import {
   OR_OP,
 } from './utils';
 import './style.css';
-import defaultApi from '../utils/api';
-import FaRegClone from 'react-icons/lib/fa/clone';
-import FaPlusCircle from 'react-icons/lib/fa/plus-circle';
 
 const newEmptySqon = () => ({
   op: AND_OP,
@@ -35,14 +35,12 @@ const defaultSqonDeletionHandler = ({
       onSqonDeleteConfirmed: () => {
         s.setState({
           deletingIndex: null,
-          deletingIndex: null,
           onSqonDeleteConfirmed: null,
         });
         resolve();
       },
       onSqonDeleteCancel: () => {
         s.setState({
-          deletingIndex: null,
           deletingIndex: null,
           onSqonDeleteConfirmed: null,
         });
@@ -53,8 +51,7 @@ const defaultSqonDeletionHandler = ({
 
 const AdvancedSqonBuilder = (props) => {
   const {
-    arrangerProjectId = PROJECT_ID,
-    arrangerProjectIndex,
+    arrangerIndex,
     syntheticSqons = [],
     activeSqonIndex: currentActiveSqonIndex = 0,
     FieldOpModifierContainer = undefined,
@@ -66,7 +63,7 @@ const AdvancedSqonBuilder = (props) => {
       <button className={`button ${className}`} {...rest} />
     ),
     getSqonDeleteConfirmation = defaultSqonDeletionHandler,
-    api = defaultApi,
+    apiFetcher = defaultApiFetcher,
     referenceColors = [
       '#cbeefb',
       '#fce8d3',
@@ -109,17 +106,19 @@ const AdvancedSqonBuilder = (props) => {
     });
   };
 
-  const dispatchSqonListChange = (s) => ({ eventKey, newSqonList, eventDetails }) => {
-    clearSqonDeletion(s);
-    // wraps in promise to delay to allow delaying to next frame
-    return Promise.resolve(
-      onChange({
-        eventKey,
-        eventDetails,
-        newSyntheticSqons: newSqonList,
-      }),
-    );
-  };
+  const dispatchSqonListChange =
+    (s) =>
+    ({ eventKey, newSqonList, eventDetails }) => {
+      clearSqonDeletion(s);
+      // wraps in promise to delay to allow delaying to next frame
+      return Promise.resolve(
+        onChange({
+          eventKey,
+          eventDetails,
+          newSyntheticSqons: newSqonList,
+        }),
+      );
+    };
   const onSelectedSqonIndicesChange = (s) => (index) => () => {
     if (!s.state.selectedSqonIndices.includes(index) && !isEmptySqon(syntheticSqons[index])) {
       s.setState({
@@ -289,9 +288,8 @@ const AdvancedSqonBuilder = (props) => {
               <SqonEntry
                 key={i}
                 index={i}
-                api={api}
-                arrangerProjectId={arrangerProjectId}
-                arrangerProjectIndex={arrangerProjectIndex}
+                apiFetcher={apiFetcher}
+                arrangerIndex={arrangerIndex}
                 syntheticSqon={sq}
                 isActiveSqon={i === currentActiveSqonIndex}
                 isSelected={s.state.selectedSqonIndices.includes(i)}
@@ -340,8 +338,7 @@ const AdvancedSqonBuilder = (props) => {
 };
 
 AdvancedSqonBuilder.propTypes = {
-  arrangerProjectId: PropTypes.string,
-  arrangerProjectIndex: PropTypes.string.isRequired,
+  arrangerIndex: PropTypes.string.isRequired,
   syntheticSqons: PropTypes.arrayOf(PropTypes.object),
   activeSqonIndex: PropTypes.number,
   FieldOpModifierContainer: PropTypes.any,
@@ -351,7 +348,7 @@ AdvancedSqonBuilder.propTypes = {
   fieldDisplayNameMap: PropTypes.objectOf(PropTypes.string),
   ButtonComponent: PropTypes.any,
   getSqonDeleteConfirmation: PropTypes.func,
-  api: PropTypes.func,
+  apiFetcher: PropTypes.func,
   referenceColors: PropTypes.arrayOf(PropTypes.string),
   emptyEntryMessage: PropTypes.node,
 };

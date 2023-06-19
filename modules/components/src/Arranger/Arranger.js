@@ -1,9 +1,19 @@
 import React from 'react';
-import { get, pick } from 'lodash';
 
-import columnsToGraphql from '@arranger/mapping-utils/dist/utils/columnsToGraphql';
+import { DataProvider } from '@/DataContext';
 
-import defaultApi from '../utils/api';
+import defaultApiFetcher from '../utils/api';
+
+// TODO: This is a dummy object, exported for the DataContext's types, to ensure that a TS
+// error comes up when this component is deprecated in a later version, after the rewrite
+export let legacyProps;
+
+/** Arranger Root Component
+ * @deprecated
+ * This component used to serve as a makeshift context provider in older versions of Arranger.
+ *
+ * Please review the migration instructions to update your app as soon as possible.
+ */
 
 class Arranger extends React.Component {
   constructor(props) {
@@ -15,22 +25,7 @@ class Arranger extends React.Component {
     };
   }
 
-  fetchData = (projectId) => {
-    return (options) => {
-      const { api = defaultApi } = this.props;
-      return api({
-        endpoint: `/${projectId}/graphql`,
-        body: columnsToGraphql(options),
-      }).then((r) => {
-        const hits = get(r, `data.${options.config.type}.hits`) || {};
-        const data = get(hits, 'edges', []).map((e) => e.node);
-        const total = hits.total || 0;
-        return { total, data };
-      });
-    };
-  };
-
-  componentWillMount() {
+  UNSAFE_componentWillMount() {
     const hasChildren = this.props.children && React.Children.count(this.props.children) !== 0;
 
     if (this.props.component && this.props.render) {
@@ -52,39 +47,50 @@ class Arranger extends React.Component {
     }
   }
 
+  setSelectedTableRows = (selectedTableRows) => this.setState({ selectedTableRows });
+  setSQON = (sqon) => this.setState({ sqon });
+
   render() {
     const {
       index,
-      graphqlField,
-      projectId,
+      documentType,
       children,
       render,
       component,
-      api = defaultApi,
+      apiFetcher = defaultApiFetcher,
     } = this.props;
     const { sqon, selectedTableRows } = this.state;
+    const { setSelectedTableRows, setSQON } = this;
 
     const childProps = {
-      api,
-      sqon,
-      selectedTableRows,
-      projectId,
+      apiFetcher,
+      documentType,
       index,
-      graphqlField,
-      fetchData: this.fetchData,
-      setSQON: (sqon) => this.setState({ sqon }),
-      setSelectedTableRows: (selectedTableRows) => this.setState({ selectedTableRows }),
+      selectedTableRows,
+      setSelectedTableRows,
+      setSQON,
+      sqon,
     };
 
-    if (component) {
-      return React.createElement(component, childProps);
-    } else if (render) {
-      return render(childProps);
-    } else if (children) {
-      return typeof children === 'function' ? children(childProps) : children;
-    } else {
-      return null;
-    }
+    legacyProps = { index, selectedTableRows, setSelectedTableRows, setSQON, sqon };
+
+    return (
+      <DataProvider
+        customFetcher={apiFetcher}
+        documentType={documentType}
+        legacyProps={legacyProps}
+      >
+        {component
+          ? React.createElement(component, childProps)
+          : render
+          ? render(childProps)
+          : children
+          ? typeof children === 'function'
+            ? children(childProps)
+            : children
+          : null}
+      </DataProvider>
+    );
   }
 }
 

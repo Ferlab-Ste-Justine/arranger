@@ -1,6 +1,7 @@
 import React from 'react';
-import { css } from 'emotion';
+import { css } from '@emotion/react';
 import { storiesOf } from '@storybook/react';
+
 import { themeDecorator } from './decorators';
 import LiveAdvancedFacetView from '../src/AdvancedFacetView/LiveAdvancedFacetView';
 
@@ -44,7 +45,6 @@ storiesOf('AdvancedFacetView', module)
             (Stat components to be inserted here from portal)
           </div>
         ),
-        projectId: process.env['STORYBOOK_AFV_PROJECT_ID'],
         index: process.env['STORYBOOK_AFV_ACTIVE_INDEX'],
         onSqonChange: ({ sqon }) => console.log(sqon),
         sqon: {

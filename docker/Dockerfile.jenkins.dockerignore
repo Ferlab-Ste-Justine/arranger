@@ -1,0 +1,12 @@
+.*
+Dockerfile
+docker-compose.yml
+docker
+docks
+integration-tests
+modules/**/*
+!modules/server
+scripts
+Jenkinsfile
+lerna*
+prettier*

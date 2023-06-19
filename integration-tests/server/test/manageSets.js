@@ -1,46 +1,58 @@
 import { expect } from 'chai';
-import gql from 'graphql-tag';
 import { print } from 'graphql';
-import get from 'lodash/get';
+import gql from 'graphql-tag';
 
-export default ({ api, graphqlField, gqlPath }) => {
-  let setId = undefined;
-  it('creates set successfully', async () => {
-    let response = await api.post({
-      endpoint: gqlPath,
-      body: {
-        query: print(gql`
-          mutation {
-            newSet: saveSet(type: ${graphqlField}, path: "name", sqon: {}) {
-              setId
-            }
-          }
-        `),
-      },
-    });
-    expect(response.errors).to.be.undefined;
-    setId = response.data.newSet.setId;
-  });
-  it('retrieves newly created set successfully', async () => {
-    let response = await api.post({
-      endpoint: gqlPath,
-      body: {
-        query: print(gql`
-          {
-            sets {
-              hits(first: 1000) {
-                edges {
-                  node {
-                    id
-                  }
-                }
-              }
-            }
-          }
-        `),
-      },
-    });
-    expect(response.errors).to.be.undefined;
-    expect(response.data.sets.hits.edges.map((edge) => edge.node.id)).to.include(setId);
-  });
+export default ({ api, documentType, gqlPath }) => {
+	let setId = undefined;
+
+	it('1.creates set successfully', async () => {
+		const { data } = await api
+			.post({
+				endpoint: gqlPath,
+				body: {
+					query: print(gql`
+						mutation {
+							newSet: saveSet(type: ${documentType}, path: "name", sqon: {}) {
+								setId
+							}
+						}
+					`),
+				},
+			})
+			.catch((err) => {
+				console.log('manageSets error', err);
+			});
+
+		expect(data.errors).to.be.undefined;
+
+		setId = data.data.newSet.setId;
+	});
+
+	it('2.retrieves newly created set successfully', async () => {
+		const { data } = await api
+			.post({
+				endpoint: gqlPath,
+				body: {
+					query: print(gql`
+						{
+							sets {
+								hits(first: 1000) {
+									edges {
+										node {
+											id
+										}
+									}
+								}
+							}
+						}
+					`),
+				},
+			})
+			.catch((err) => {
+				console.log('manageSets error', err);
+			});
+
+		expect(data.errors).to.be.undefined;
+		expect(data.data.sets.hits.edges.map((edge) => edge.node.id)).to.include(setId);
+	});
 };

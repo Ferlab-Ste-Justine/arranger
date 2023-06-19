@@ -1,2 +1,8 @@
-src
-.babelrc
+configs/
+src/
+
+.eslintrc*
+
+./index.js
+./index.ts
+tsconfig*

@@ -1,0 +1,27 @@
+{
+	"documentType": "model",
+	"index": "models",
+	"facets": {
+		"aggregations": [
+			{
+				"fieldName": "analysis__analysis_id",
+				"isActive": true,
+				"show": true
+			}
+		]
+	},
+	"table": {
+		"columns": [],
+		"rowIdFieldName": "analysis__analysis_id"
+	},
+	"extended": [],
+	"matchbox": [
+		{
+			"displayName": "file",
+			"fieldName": "",
+			"isActive": false,
+			"keyFieldName": null,
+			"searchFields": []
+		}
+	]
+}

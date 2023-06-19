@@ -1,13 +1,13 @@
 import React from 'react';
 import Component from 'react-component-component';
-import FaChevronDown from 'react-icons/lib/fa/chevron-down';
-import FaChevronUp from 'react-icons/lib/fa/chevron-up';
+import { FaChevronDown, FaChevronUp } from 'react-icons/fa';
+
 import { isReference, isBooleanOp, isFieldOp, isEmptySqon } from '../utils';
-import FieldOp from './FieldOp';
+import defaultApiFetcher from '../../utils/api';
 import ClickAwayListener from '../../utils/ClickAwayListener.js';
+
 import { PillRemoveButton } from './common';
-import { PROJECT_ID } from '../../utils/config';
-import defaultApi from '../../utils/api';
+import FieldOp from './FieldOp';
 
 const SqonReference = (props) => {
   const { refIndex, onRemoveClick = () => {}, highlightColor, isHighlighted } = props;
@@ -81,15 +81,14 @@ const LogicalOpSelector = (props) => {
  */
 const BooleanOp = (props) => {
   const {
-    arrangerProjectId = PROJECT_ID,
-    arrangerProjectIndex,
+    arrangerIndex,
     contentPath = [],
     onFieldOpRemove = (path) => {},
     onChange = (changedPath, newOp) => {},
     sqon,
     fullSyntheticSqon = sqon,
     FieldOpModifierContainer = undefined,
-    api = defaultApi,
+    apiFetcher = defaultApiFetcher,
     getActiveExecutableSqon,
     getColorForReference = () => '',
     isIndexReferenced = () => false,
@@ -123,14 +122,13 @@ const BooleanOp = (props) => {
             ) : isFieldOp(c) ? (
               <span>
                 <FieldOp
-                  arrangerProjectId={arrangerProjectId}
-                  arrangerProjectIndex={arrangerProjectIndex}
+                  arrangerIndex={arrangerIndex}
                   sqonPath={currentPath}
                   fullSyntheticSqon={fullSyntheticSqon}
                   onContentRemove={onRemove(currentPath)}
                   onSqonChange={onNewSqonSubmit}
                   FieldOpModifierContainer={FieldOpModifierContainer}
-                  api={api}
+                  apiFetcher={apiFetcher}
                   getActiveExecutableSqon={getActiveExecutableSqon}
                 />
               </span>

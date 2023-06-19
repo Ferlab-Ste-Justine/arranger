@@ -1,144 +1,201 @@
-import React from 'react';
-import AggsWrapper from './AggsWrapper.js';
-import { replaceSQON, removeSQON } from '../SQONView/utils';
-import './BooleanAgg.css';
-import TextHighlight from '../TextHighlight';
-import ToggleButton from '../ToggleButton';
-import formatNumber from '../utils/formatNumber';
+import { css } from '@emotion/react';
+import cx from 'classnames';
 
-export default ({
-  field,
-  buckets,
-  handleValueClick = () => {},
-  isActive = () => false,
-  collapsible,
-  WrapperComponent,
-  displayName,
-  highlightText,
-  valueKeys = {
-    true: 'true',
-    false: 'false',
-  },
-  defaultDisplayKeys = {
-    any: 'Any',
-    true: 'Yes',
-    false: 'No',
-  },
-  displayValues: extendedDisplayKeys = {},
-  displayKeys = Object.keys(defaultDisplayKeys).reduce(
-    (obj, x) => ({
-      ...obj,
-      [x]: extendedDisplayKeys[x] || defaultDisplayKeys[x],
-    }),
-    {},
-  ),
-  ...rest
+import { replaceSQON, removeSQON } from '@/SQONViewer/utils';
+import TextHighlight from '@/TextHighlight';
+import { useThemeContext } from '@/ThemeContext';
+import ToggleButton from '@/ToggleButton';
+import formatNumber from '@/utils/formatNumber';
+import noopFn, { emptyObj } from '@/utils/noops';
+
+import AggsWrapper from './AggsWrapper';
+import BucketCount from './BucketCount';
+
+const BooleanAgg = ({
+	buckets = [],
+	collapsible,
+	fieldName,
+	handleValueClick = noopFn,
+	isActive = () => false,
+	WrapperComponent,
+	displayName,
+	highlightText,
+	valueKeys = {
+		true: 'true',
+		false: 'false',
+	},
+	defaultDisplayKeys = {
+		any: 'Any',
+		true: 'Yes',
+		false: 'No',
+	},
+	displayValues: extendedDisplayKeys = emptyObj,
+	displayKeys = Object.keys(defaultDisplayKeys).reduce(
+		(obj, x) => ({
+			...obj,
+			[x]: extendedDisplayKeys[x] || defaultDisplayKeys[x],
+		}),
+		{},
+	),
+	type,
 }) => {
-  const trueBucket = buckets.find(({ key_as_string }) => key_as_string === valueKeys.true);
-  const falseBucket = buckets.find(({ key_as_string }) => key_as_string === valueKeys.false);
+	const {
+		colors,
+		components: {
+			Aggregations: {
+				BooleanAgg: {
+					BucketCount: { className: themeBucketCountClassName, ...bucketCountTheme } = emptyObj,
+					ToggleButton: { className: themeToggleButtonClassName, ...toggleButtonTheme } = emptyObj,
+				} = emptyObj,
+				NoDataContainer: {
+					fontColor: themeNoDataFontColor = colors?.grey?.[600],
+					fontSize: themeNoDataFontSize = '0.8em',
+				} = emptyObj,
+			} = emptyObj,
+		} = emptyObj,
+	} = useThemeContext({ callerName: 'BooleanAgg' });
 
-  const missingKeyBucket = buckets.find(({ key_as_string }) => !key_as_string);
+	const trueBucket = buckets.find(({ key_as_string }) => key_as_string === valueKeys.true);
+	const falseBucket = buckets.find(({ key_as_string }) => key_as_string === valueKeys.false);
 
-  const dotField = field.replace(/__/g, '.');
+	const missingKeyBucket = buckets.find(({ key_as_string }) => !key_as_string);
 
-  const isTrueActive = isActive({
-    value: valueKeys.true,
-    field: dotField,
-  });
-  const isFalseActive = isActive({
-    value: valueKeys.false,
-    field: dotField,
-  });
+	const dotFieldName = fieldName.replace(/__/g, '.');
 
-  const isTrueBucketDisabled = trueBucket === undefined || trueBucket?.doc_count <= 0;
-  const isFalseBucketDisabled = falseBucket === undefined || falseBucket?.doc_count <= 0;
+	const isTrueActive = isActive({
+		value: valueKeys.true,
+		fieldName: dotFieldName,
+	});
+	const isFalseActive = isActive({
+		value: valueKeys.false,
+		fieldName: dotFieldName,
+	});
 
-  const handleChange = (isTrue, field) => {
-    if (isTrue !== undefined) {
-      handleValueClick({
-        bucket: isTrue ? trueBucket : falseBucket,
-        value: isTrue ? trueBucket : falseBucket || missingKeyBucket,
-        field,
-        generateNextSQON: (sqon) =>
-          replaceSQON(
-            {
-              op: 'and',
-              content: [
-                {
-                  op: 'in',
-                  content: {
-                    field: dotField,
-                    value: [valueKeys[isTrue ? 'true' : 'false']],
-                  },
-                },
-              ],
-            },
-            sqon,
-          ),
-      });
-    } else {
-      handleValueClick({
-        value: 'Any',
-        field,
-        generateNextSQON: (sqon) => removeSQON(dotField, sqon),
-      });
-    }
-  };
+	const isTrueBucketDisabled = trueBucket === undefined || trueBucket?.doc_count <= 0;
+	const isFalseBucketDisabled = falseBucket === undefined || falseBucket?.doc_count <= 0;
 
-  const options = (displayKeys.any
-    ? [
-        {
-          value: undefined,
-          title: displayKeys.any,
-        },
-      ]
-    : []
-  ).concat([
-    {
-      value: valueKeys.true,
-      disabled: isTrueBucketDisabled,
-      title: (
-        <>
-          <TextHighlight content={displayKeys.true} highlightText={highlightText} />
-          <span className={`bucket-count`} style={{ marginLeft: 2 }}>
-            {formatNumber(isTrueBucketDisabled ? 0 : trueBucket.doc_count)}
-          </span>
-        </>
-      ),
-    },
-    {
-      value: valueKeys.false,
-      disabled: isFalseBucketDisabled,
-      title: (
-        <>
-          <TextHighlight content={displayKeys.false} highlightText={highlightText} />
-          <span
-            className={`bucket-count`}
-            style={{
-              marginLeft: 2,
-            }}
-          >
-            {formatNumber(isFalseBucketDisabled ? 0 : falseBucket.doc_count)}
-          </span>
-        </>
-      ),
-    },
-  ]);
+	const handleChange = (isTrue, fieldName) => {
+		handleValueClick(
+			isTrue === undefined // aka "Any" button clicked
+				? {
+						fieldName,
+						generateNextSQON: (sqon) => removeSQON(dotFieldName, sqon),
+						value: 'Any',
+				  }
+				: {
+						bucket: isTrue ? trueBucket : falseBucket,
+						fieldName,
+						generateNextSQON: (sqon) =>
+							replaceSQON(
+								{
+									op: 'and',
+									content: [
+										{
+											op: 'in',
+											content: {
+												fieldName: dotFieldName,
+												value: [valueKeys[isTrue ? 'true' : 'false']],
+											},
+										},
+									],
+								},
+								sqon,
+							),
+						value: isTrue ? trueBucket : falseBucket || missingKeyBucket,
+				  },
+		);
+	};
 
-  return (
-    <AggsWrapper {...{ displayName, WrapperComponent, collapsible }}>
-      <ToggleButton
-        {...{
-          value: isTrueActive ? valueKeys.true : isFalseActive ? valueKeys.false : undefined,
-          options: options,
-          onChange: ({ value }) => {
-            handleChange(
-              value === valueKeys.true ? true : value === valueKeys.false ? false : undefined,
-              dotField,
-            );
-          },
-        }}
-      />
-    </AggsWrapper>
-  );
+	const hasData = trueBucket?.doc_count + trueBucket?.doc_count > 0;
+
+	const options = (
+		displayKeys.any
+			? [
+					{
+						value: undefined,
+						title: displayKeys.any,
+					},
+			  ]
+			: []
+	).concat([
+		{
+			value: valueKeys.true,
+			disabled: isTrueBucketDisabled,
+			title: ({ toggleStatus = '' } = emptyObj) => (
+				<>
+					<TextHighlight content={displayKeys.true} highlightText={highlightText} />
+					<BucketCount
+						className={cx(toggleStatus, themeBucketCountClassName)}
+						css={css`
+							margin-left: 0.3rem;
+						`}
+						theme={bucketCountTheme}
+					>
+						{formatNumber(isTrueBucketDisabled ? 0 : trueBucket.doc_count)}
+					</BucketCount>
+				</>
+			),
+		},
+		{
+			value: valueKeys.false,
+			disabled: isFalseBucketDisabled,
+			title: ({ toggleStatus = '' } = emptyObj) => (
+				<>
+					<TextHighlight content={displayKeys.false} highlightText={highlightText} />
+					<BucketCount
+						className={cx(toggleStatus, themeBucketCountClassName)}
+						css={css`
+							margin-left: 0.2rem;
+						`}
+						theme={bucketCountTheme}
+					>
+						{formatNumber(isFalseBucketDisabled ? 0 : falseBucket.doc_count)}
+					</BucketCount>
+				</>
+			),
+		},
+	]);
+
+	const dataFields = {
+		...(fieldName && { 'data-fieldname': fieldName }),
+		...(type && { 'data-type': type }),
+	};
+
+	return (
+		<AggsWrapper dataFields={dataFields} {...{ displayName, WrapperComponent, collapsible }}>
+			{hasData ? (
+				<div
+					css={css`
+						width: 100%;
+					`}
+				>
+					<ToggleButton
+						className={themeToggleButtonClassName}
+						onChange={({ value }) => {
+							handleChange(
+								value === valueKeys.true ? true : value === valueKeys.false ? false : undefined,
+								dotFieldName,
+							);
+						}}
+						options={options}
+						theme={toggleButtonTheme}
+						value={isTrueActive ? valueKeys.true : isFalseActive ? valueKeys.false : undefined}
+					/>
+				</div>
+			) : (
+				<span
+					className="no-data"
+					css={css`
+						color: ${themeNoDataFontColor};
+						display: block;
+						font-size: ${themeNoDataFontSize};
+					`}
+				>
+					No data available
+				</span>
+			)}
+		</AggsWrapper>
+	);
 };
+
+export default BooleanAgg;

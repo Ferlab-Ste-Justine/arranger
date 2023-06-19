@@ -1,52 +1,64 @@
-import React from 'react';
-import SearchIcon from 'react-icons/lib/fa/search';
+import { FaSearch } from 'react-icons/fa';
 
-import TextInput from '../Input';
-import { replaceFilterSQON } from '../SQONView/utils';
+import TextInput from '@/Input';
+import { replaceFilterSQON } from '@/SQONViewer/utils';
+import noopFn, { emptyObj } from '@/utils/noops';
 
-export const generateNextSQON = (value) => ({ sqon, fields, entity }) =>
-  replaceFilterSQON(
-    {
-      op: 'and',
-      content: [
-        {
-          op: 'filter',
-          content: {
-            fields: fields,
-            value,
-            ...(entity && { entity }),
-          },
-        },
-      ],
-    },
-    sqon,
-  );
+export const generateNextSQON =
+	(value) =>
+	({ sqon, fieldNames, entity }) =>
+		replaceFilterSQON(
+			{
+				op: 'and',
+				content: [
+					{
+						op: 'filter',
+						content: {
+							fieldNames,
+							value,
+							...(entity && { entity }),
+						},
+					},
+				],
+			},
+			sqon,
+		);
 
 const TextFilter = ({
-  value,
-  onChange,
-  Icon = SearchIcon,
-  placeholder = 'Filter',
-  InputComponent = TextInput,
-  ...props
-}) => (
-  <InputComponent
-    icon={<Icon />}
-    type="text"
-    placeholder={placeholder}
-    value={value}
-    onChange={(e) => {
-      const {
-        target: { value },
-      } = e;
-      onChange({
-        value,
-        generateNextSQON: generateNextSQON(value),
-      });
-    }}
-    aria-label={`Data filter`}
-    {...props}
-  />
-);
+	onChange = noopFn,
+	theme: {
+		altText = `Data filter`,
+		Component = TextInput,
+		disabled: customDisabled,
+		leftIcon = { Icon: FaSearch },
+		placeholder = 'Filter',
+		showClear = true,
+		...theme
+	} = emptyObj,
+	...props
+}) => {
+	const handleChange = ({ target: { value = '' } = {} } = {}) => {
+		onChange({
+			value,
+			generateNextSQON: generateNextSQON(value),
+		});
+	};
+
+	return (
+		<Component
+			disabled={customDisabled}
+			onChange={handleChange}
+			theme={{
+				altText,
+				leftIcon,
+				placeholder,
+				showClear,
+				...theme,
+			}}
+			type="text"
+			{...props}
+		/>
+	);
+};
 
 export default TextFilter;

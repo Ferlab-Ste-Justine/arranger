@@ -1,58 +1,75 @@
-import React from 'react';
-
-import DataTable, { ColumnsState } from '../DataTable';
 import Spinner from 'react-spinkit';
 
+import DataTable, { ColumnsState } from '@/DataTable';
+import { withTableContext } from '@/Table';
+import defaultApiFetcher from '@/utils/api';
+import noopFn from '@/utils/noops';
+
+/**
+ * @param {SQONType} sqon
+ */
 const Table = ({
-  onFilterChange = () => {},
-  projectId,
-  graphqlField,
-  fetchData,
-  setSQON,
-  sqon,
-  fieldTypesForFilter = ['text', 'keyword'],
-  api,
-  InputComponent,
-  showFilterInput = true,
-  customHeaderContent = null,
-  ...props
+	onFilterChange = noopFn,
+	documentType = '',
+	fetchData = defaultApiFetcher,
+	setSQON = noopFn,
+	sqon = null,
+	fieldTypesForFilter = ['text', 'keyword'],
+	apiFetcher,
+	InputComponent,
+	showFilterInput = true,
+	customHeaderContent = null,
+	sessionStorage = false, // Use session storage to save selected columns, page size, and column sort.
+	storageKey = '', // Identifier to use in session storage property name where state info is stored. Use the same save-key in multiple tables to share save state.
+	...props
 }) => {
-  return (
-    <ColumnsState
-      projectId={projectId}
-      graphqlField={graphqlField}
-      api={api}
-      render={(columnState) => {
-        return columnState.loading ? (
-          <Spinner fadeIn="full" name="circle" />
-        ) : (
-          <DataTable
-            {...{ ...props, api, showFilterInput, customHeaderContent }}
-            InputComponent={InputComponent}
-            projectId={projectId}
-            sqon={sqon}
-            config={{
-              ...columnState.state,
-              type: graphqlField,
-            }}
-            fetchData={fetchData(projectId)}
-            onColumnsChange={columnState.toggle}
-            onFilterChange={({ generateNextSQON, value }) => {
-              onFilterChange(value);
-              setSQON(
-                generateNextSQON({
-                  sqon,
-                  fields: columnState.state.columns
-                    .filter((x) => fieldTypesForFilter.includes(x.extendedType) && x.show)
-                    .map((x) => x.field),
-                }),
-              );
-            }}
-          />
-        );
-      }}
-    />
-  );
+	return (
+		<ColumnsState
+			documentType={documentType}
+			apiFetcher={apiFetcher}
+			sessionStorage={sessionStorage}
+			storageKey={storageKey}
+			render={(tableConfigs = {}) => {
+				return tableConfigs.loading ? (
+					<Spinner fadeIn="full" name="circle" />
+				) : (
+					<DataTable
+						{...{ ...props, apiFetcher, showFilterInput, customHeaderContent }}
+						InputComponent={InputComponent}
+						sqon={sqon}
+						config={{
+							...tableConfigs.state,
+							// generates a handy dictionary with all the available columns
+							allColumns: tableConfigs.state.columns?.reduce(
+								(columnsDict, column) => ({
+									...columnsDict,
+									[column.field]: column,
+								}),
+								{},
+							),
+							documentType,
+						}}
+						fetchData={fetchData}
+						onColumnsChange={tableConfigs.toggle}
+						onMultipleColumnsChange={tableConfigs.toggleMultiple}
+						onFilterChange={({ generateNextSQON, value }) => {
+							onFilterChange(value);
+							setSQON(
+								generateNextSQON({
+									sqon,
+									fieldNames: tableConfigs.state.columns
+										.filter((x) => fieldTypesForFilter.includes(x.type) && x.show)
+										.map((x) => x.field),
+								}),
+							);
+						}}
+						sessionStorage={sessionStorage}
+						storageKey={storageKey}
+					/>
+				);
+			}}
+		/>
+	);
 };
 
-export default Table;
+export default withTableContext(Table);

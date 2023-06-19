@@ -1,151 +1,216 @@
-import React from 'react';
+import { css } from '@emotion/react';
 import { sortBy } from 'lodash';
+import cx from 'classnames';
 
-import { AggsState, AggsQuery } from '../Aggs';
-import aggComponents from '../Aggs/aggComponentsMap.js';
-
-export { AggsWrapper } from '../Aggs';
+import { AggsState, AggsQuery } from '@/Aggs';
+import aggComponents from '@/Aggs/aggComponentsMap';
+import { withData } from '@/DataContext';
+import noopFn, { emptyArrFn, emptyObj, emptyObjFn } from '@/utils/noops';
+import { LoaderContainer } from '@/Loader';
+import { DEBUG } from '@/utils/config';
+import Loader from '@/Loader/Loader';
 
 const BaseWrapper = ({ className, ...props }) => (
-  <div {...props} className={`aggregations ${className}`} />
+	<section
+		css={css`
+			height: 100%;
+			width: 100%;
+		`}
+		{...props}
+		className={cx('aggregations', className)}
+	/>
 );
 
 export const AggregationsListDisplay = ({
-  data,
-  onValueChange = () => {},
-  aggs,
-  graphqlField,
-  setSQON,
-  sqon,
-  containerRef,
-  componentProps = {
-    getTermAggProps: () => ({}),
-    getRangeAggProps: () => ({}),
-    getBooleanAggProps: () => ({}),
-    getDatesAggProps: () => ({}),
-  },
-  getCustomItems = ({ aggs }) => [], // Array<{index: number, component: Component | Function}>
+	aggs,
+	componentProps = {
+		getBooleanAggProps: emptyObjFn,
+		getDatesAggProps: emptyObjFn,
+		getRangeAggProps: emptyObjFn,
+		getTermAggProps: emptyObjFn,
+	},
+	containerRef,
+	customFacets = [],
+	data,
+	extendedMapping,
+	getCustomItems = emptyArrFn, // ({ aggs }) => Array<{index: number, component: Component | Function}>
+	documentType,
+	onValueChange = noopFn,
+	setSQON,
+	sqon,
 }) => {
-  const aggComponentInstances =
-    data &&
-    aggs
-      .map((agg) => ({
-        ...agg,
-        ...data[graphqlField].aggregations[agg.field],
-        ...data[graphqlField].extended.find((x) => x.field.replace(/\./g, '__') === agg.field),
-        onValueChange: ({ sqon, value }) => {
-          onValueChange(value);
-          setSQON(sqon);
-        },
-        key: agg.field,
-        sqon,
-        containerRef,
-      }))
-      .map((agg) => aggComponents[agg.type]?.({ ...agg, ...componentProps }));
-  if (aggComponentInstances) {
-    // sort the list by the index specified for each component to prevent order bumping
-    const componentListToInsert = sortBy(getCustomItems({ aggs }), 'index');
-    // go through the list of inserts and inject them by splitting and joining
-    const inserted = componentListToInsert.reduce((acc, { index, component }) => {
-      const firstChunk = acc.slice(0, index);
-      const secondChunk = acc.slice(index, acc.length);
-      return [...firstChunk, component(), ...secondChunk];
-    }, aggComponentInstances);
-    return inserted;
-  } else {
-    return aggComponentInstances;
-  }
+	const aggComponentInstances =
+		data &&
+		aggs
+			.map((agg) => ({
+				...agg,
+				...data?.[documentType]?.aggregations?.[agg?.fieldName],
+				...extendedMapping.find(
+					(extendedField) => extendedField.fieldName.replaceAll('.', '__') === agg.fieldName,
+				),
+				onValueChange: ({ sqon, value }) => {
+					onValueChange(value);
+					setSQON(sqon);
+				},
+				key: agg.fieldName,
+				sqon,
+				containerRef,
+			}))
+			.map((agg) => {
+				const customContent =
+					customFacets.find((x) => x.content.fieldName === agg.fieldName)?.content || {};
+
+				return {
+					...agg,
+					...customContent,
+				};
+			})
+			.map((agg) => aggComponents[agg.type]?.({ ...agg, ...componentProps }));
+
+	if (data && aggComponentInstances) {
+		// sort the list by the index specified for each component to prevent order bumping
+		const componentListToInsert = sortBy(getCustomItems({ aggs }), 'index');
+		// go through the list of inserts and inject them by splitting and joining
+		const inserted = componentListToInsert.reduce((acc, { index, component }) => {
+			const firstChunk = acc.slice(0, index);
+			const secondChunk = acc.slice(index, acc.length);
+			return [...firstChunk, component(), ...secondChunk];
+		}, aggComponentInstances);
+
+		return inserted;
+	} else {
+		return (
+			<Loader
+				css={css`
+					height: 100%;
+					width: 100%;
+				`}
+			/>
+		);
+	}
 };
 
 export const AggregationsList = ({
-  onValueChange = () => {},
-  setSQON,
-  sqon,
-  projectId,
-  graphqlField,
-  style,
-  api,
-  Wrapper = BaseWrapper,
-  containerRef,
-  componentProps = {
-    getTermAggProps: () => ({}),
-    getRangeAggProps: () => ({}),
-    getBooleanAggProps: () => ({}),
-    getDatesAggProps: () => ({}),
-  },
-  aggs = [],
-  debounceTime,
-  getCustomItems,
+	aggs = [],
+	apiFetcher,
+	componentProps = {
+		getBooleanAggProps: emptyObjFn,
+		getDatesAggProps: emptyObjFn,
+		getRangeAggProps: emptyObjFn,
+		getTermAggProps: emptyObjFn,
+	},
+	containerRef,
+	customFacets = [],
+	debounceTime = 300,
+	documentType,
+	extendedMapping,
+	getCustomItems,
+	isLoadingConfigs,
+	onValueChange = noopFn,
+	setSQON,
+	sqon,
 }) => (
-  <AggsQuery
-    api={api}
-    debounceTime={300}
-    projectId={projectId}
-    index={graphqlField}
-    sqon={sqon}
-    aggs={aggs}
-    render={({ data }) =>
-      AggregationsListDisplay({
-        data,
-        onValueChange,
-        aggs,
-        graphqlField,
-        setSQON,
-        sqon,
-        containerRef,
-        componentProps,
-        getCustomItems,
-      })
-    }
-  />
+	<AggsQuery
+		aggs={aggs}
+		apiFetcher={apiFetcher}
+		debounceTime={debounceTime}
+		index={documentType}
+		render={({ data, loading, error }) => {
+			DEBUG && error && console.error(error);
+
+			return (
+				<LoaderContainer
+					css={css`
+						height: 100%;
+						width: 100%;
+					`}
+					disabled={true} // TODO: implement with theme
+					isLoading={isLoadingConfigs || loading}
+				>
+					{AggregationsListDisplay({
+						aggs,
+						componentProps,
+						containerRef,
+						customFacets,
+						data,
+						extendedMapping,
+						getCustomItems,
+						documentType,
+						onValueChange,
+						setSQON,
+						sqon,
+					})}
+				</LoaderContainer>
+			);
+		}}
+		sqon={sqon}
+	/>
 );
 
+/**
+ * @param {array} customFacets Allows custom content to be passed to each facet in the aggregation list.
+ *   This can overwrite any property in the agg object in the aggregation list
+ *   The structure of this property is:
+ *   [
+ *     {
+ *       content: {
+ *         field: 'field_name', // identify which facet this object customizes
+ *         displayName: 'New Display Name for This Field', // modify displayName of the facet
+ *       },
+ *     },
+ *   ]
+ * @param {SQONType} sqon
+ */
 const Aggregations = ({
-  onValueChange = () => {},
-  setSQON,
-  sqon,
-  projectId,
-  graphqlField,
-  className = '',
-  style,
-  api,
-  Wrapper = BaseWrapper,
-  containerRef,
-  componentProps = {
-    getTermAggProps: () => ({}),
-    getRangeAggProps: () => ({}),
-    getBooleanAggProps: () => ({}),
-    getDatesAggProps: () => ({}),
-  },
+	apiFetcher,
+	className = '',
+	componentProps = {
+		getTermAggProps: emptyObjFn,
+		getRangeAggProps: emptyObjFn,
+		getBooleanAggProps: emptyObjFn,
+		getDatesAggProps: emptyObjFn,
+	},
+	containerRef = null,
+	customFacets = [],
+	documentType = '',
+	extendedMapping,
+	isLoadingConfigs,
+	onValueChange = noopFn,
+	setSQON = noopFn,
+	sqon = null,
+	style = emptyObj,
+	Wrapper = BaseWrapper,
 }) => {
-  return (
-    <Wrapper style={style} className={className}>
-      <AggsState
-        api={api}
-        projectId={projectId}
-        graphqlField={graphqlField}
-        render={(aggsState) => {
-          const aggs = aggsState.aggs.filter((x) => x.show);
-          return (
-            <AggregationsList
-              onValueChange={onValueChange}
-              setSQON={setSQON}
-              style={style}
-              Wrapper={Wrapper}
-              containerRef={containerRef}
-              componentProps={componentProps}
-              api={api}
-              debounceTime={300}
-              projectId={projectId}
-              graphqlField={graphqlField}
-              sqon={sqon}
-              aggs={aggs}
-            />
-          );
-        }}
-      />
-    </Wrapper>
-  );
+	return (
+		<Wrapper className={className} style={style}>
+			<AggsState
+				apiFetcher={apiFetcher}
+				documentType={documentType}
+				render={(aggsState) => {
+					const aggs = aggsState.aggs.filter((agg) => agg.show);
+
+					return (
+						<AggregationsList
+							{...{
+								aggs,
+								apiFetcher,
+								componentProps,
+								containerRef,
+								customFacets,
+								documentType,
+								extendedMapping,
+								isLoadingConfigs,
+								onValueChange,
+								setSQON,
+								sqon,
+								Wrapper,
+							}}
+						/>
+					);
+				}}
+			/>
+		</Wrapper>
+	);
 };
 
-export default Aggregations;
+export default withData(Aggregations);

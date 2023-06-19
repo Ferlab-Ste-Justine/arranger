@@ -2,109 +2,203 @@ import React from 'react';
 import { isEqual } from 'lodash';
 import urlJoin from 'url-join';
 
-import { ARRANGER_API, PROJECT_ID } from '../utils/config';
+import { withData } from '@/DataContext';
+import { ARRANGER_API } from '@/utils/config';
+import noopFn from '@/utils/noops';
+
 import { Table, TableToolbar } from './';
 
+const STORED_PROPS = {
+	PAGE_SIZE: 'PAGE_SIZE',
+	SORT_ORDER: 'SORT_ORDER',
+	SELECTED_ROWS: 'SELECTED_ROWS',
+};
+
 class DataTableWithToolbar extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      pageSize: 20,
-      sort: props.config.defaultSorted || [],
-    };
-    props.onSortedChange?.(props.config.defaultSorted);
-  }
+	constructor(props) {
+		super(props);
 
-  componentWillReceiveProps(nextProps) {
-    if (!isEqual(nextProps.sqon, this.props.sqon)) {
-      this.setState({ page: 0 });
-    }
-  }
+		let pageSize = 20;
+		let sorted = props.config.defaultSorting || [];
+		let selectedTableRows = [];
 
-  render() {
-    const {
-      config,
-      fetchData,
-      setSelectedTableRows,
-      sqon,
-      selectedTableRows = null,
-      allowTogglingColumns = true,
-      allowTSVExport = true,
-      customActions = null,
-      data = null,
-      loading = null,
-      tableStyle,
-      toolbarStyle,
-      onFilterChange,
-      onColumnsChange = () => {},
-      columnDropdownText,
-      exportTSVText,
-      exportTSVFilename,
-      exporter,
-      transformParams,
-      maxPagesOptions,
-      projectId = PROJECT_ID,
-      downloadUrl = urlJoin(ARRANGER_API, projectId, 'download'),
-      onSortedChange = () => {},
-      alwaysSorted = [],
-      initalSelectedTableRows = [],
-      keepSelectedOnPageChange = false,
-      showFilterInput = true,
-      filterInputPlaceholder,
-      InputComponent,
-      customHeaderContent = null,
-    } = this.props;
-    const { page, pageSize, total } = this.state;
+		// Read initial config settings from session storage, if enabled:
+		if (this.props.sessionStorage) {
+			const storedSorted = JSON.parse(
+				window.sessionStorage.getItem(this.getStorageKey(STORED_PROPS.SORT_ORDER)),
+			);
+			const storedPageSize = JSON.parse(
+				window.sessionStorage.getItem(this.getStorageKey(STORED_PROPS.PAGE_SIZE)),
+			);
+			const storedSelectedRows = JSON.parse(
+				window.sessionStorage.getItem(this.getStorageKey(STORED_PROPS.SELECTED_ROWS)),
+			);
+			if (storedSorted) {
+				sorted = storedSorted;
+				this.props.config.defaultSorting = sorted;
+			}
+			if (storedPageSize) {
+				pageSize = storedPageSize;
+			}
+			if (storedSelectedRows && storedSelectedRows.length) {
+				selectedTableRows = storedSelectedRows;
+			}
+		}
 
-    return (
-      <>
-        <TableToolbar
-          filterInputPlaceholder={filterInputPlaceholder}
-          onFilterChange={onFilterChange}
-          style={toolbarStyle}
-          propsData={data}
-          customActions={customActions}
-          allowTogglingColumns={allowTogglingColumns}
-          allowTSVExport={allowTSVExport}
-          sqon={sqon}
-          columns={config.columns}
-          onColumnsChange={onColumnsChange}
-          total={total}
-          page={page}
-          pageSize={pageSize}
-          type={config.type}
-          columnDropdownText={columnDropdownText}
-          exportTSVText={exportTSVText}
-          exportTSVFilename={exportTSVFilename}
-          exporter={exporter}
-          transformParams={transformParams}
-          downloadUrl={downloadUrl}
-          InputComponent={InputComponent}
-          showFilterInput={showFilterInput}
-          customHeaderContent={customHeaderContent}
-        />
-        <Table
-          style={tableStyle}
-          propsData={data}
-          sqon={sqon}
-          config={config}
-          fetchData={fetchData}
-          setSelectedTableRows={setSelectedTableRows}
-          onPaginationChange={(state) => this.setState(state)}
-          onSortedChange={(sort) => {
-            this.setState({ sort, page: 0 });
-            onSortedChange(sort);
-          }}
-          defaultPageSize={pageSize}
-          loading={loading}
-          maxPagesOptions={maxPagesOptions}
-          alwaysSorted={alwaysSorted}
-          initalSelectedTableRows={initalSelectedTableRows}
-          keepSelectedOnPageChange={keepSelectedOnPageChange}
-          selectedTableRows={selectedTableRows}
-        />
-      </>
-    );
-  }
+		this.state = {
+			pageSize,
+			sorted,
+			selectedTableRows,
+		};
+
+		props.onSortedChange?.(sorted);
+	}
+
+	getStorageKey(prop) {
+		switch (prop) {
+			case STORED_PROPS.PAGE_SIZE:
+				return `arranger-table-pagesize-${this.props.storageKey || ''}`;
+			case STORED_PROPS.SORT_ORDER:
+				return `arranger-table-sorted-${this.props.storageKey || ''}`;
+			case STORED_PROPS.SELECTED_ROWS:
+				return `arranger-table-selectedrows-${this.props.storageKey || ''}`;
+			default:
+				return '';
+		}
+	}
+
+	storeProperty(prop, value) {
+		if (this.props.sessionStorage) {
+			const stringValue = JSON.stringify(value);
+			window.sessionStorage.setItem(this.getStorageKey(prop), stringValue);
+		}
+	}
+
+	UNSAFE_componentWillReceiveProps(nextProps) {
+		if (!isEqual(nextProps.sqon, this.props.sqon)) {
+			this.setState({ page: 0 });
+		}
+	}
+
+	render() {
+		const {
+			allowTogglingColumns = true,
+			allowTSVExport = true,
+			alwaysSorted = [],
+			apiUrl = ARRANGER_API,
+			columnDropdownText,
+			config,
+			customActions = null,
+			customHeaderContent = null,
+			data = null,
+			documentType,
+			downloadUrl = '',
+			enableDropDownControls = false,
+			enableSelectedTableRowsExporterFilter,
+			selectedRowsFilterPropertyName,
+			exporter,
+			exporterLabel,
+			exportMaxRows,
+			exportTSVFilename,
+			exportTSVText,
+			fetchData,
+			filterInputPlaceholder,
+			initalSelectedTableRows,
+			InputComponent,
+			keepSelectedOnPageChange = false,
+			loading = null,
+			maxPagesOptions,
+			onColumnsChange = noopFn,
+			onFilterChange = noopFn,
+			onMultipleColumnsChange = noopFn,
+			onSortedChange = noopFn,
+			sessionStorage,
+			selectedTableRows = [],
+			setSelectedRows = noopFn,
+			setSelectedTableRows = noopFn,
+			showFilterInput = true,
+			sqon,
+			tableStyle,
+			toolbarStyle,
+			transformParams,
+		} = this.props;
+		const { page, pageSize, sorted, total } = this.state;
+
+		const url = downloadUrl || urlJoin(apiUrl, 'download');
+
+		return (
+			<>
+				<TableToolbar
+					allColumns={config.allColumns}
+					allowTSVExport={allowTSVExport}
+					allowTogglingColumns={allowTogglingColumns}
+					columnDropdownText={columnDropdownText}
+					columns={config.columns}
+					customActions={customActions}
+					customHeaderContent={customHeaderContent}
+					defaultColumns={config.defaultColumns}
+					downloadUrl={url}
+					enableDropDownControls={enableDropDownControls}
+					enableSelectedTableRowsExporterFilter={enableSelectedTableRowsExporterFilter}
+					selectedRowsFilterPropertyName={selectedRowsFilterPropertyName}
+					exportMaxRows={exportMaxRows}
+					exportTSVFilename={exportTSVFilename}
+					exportTSVText={exportTSVText}
+					exporter={exporter}
+					exporterLabel={exporterLabel}
+					filterInputPlaceholder={filterInputPlaceholder}
+					InputComponent={InputComponent}
+					keyFieldName={config.rowIdFieldName}
+					onColumnsChange={onColumnsChange}
+					onFilterChange={onFilterChange}
+					onMultipleColumnsChange={onMultipleColumnsChange}
+					page={page}
+					pageSize={pageSize}
+					propsData={data}
+					selectedTableRows={selectedTableRows}
+					showFilterInput={showFilterInput}
+					sqon={sqon}
+					style={toolbarStyle}
+					total={total}
+					transformParams={transformParams}
+					type={config.type}
+				/>
+				<Table
+					documentType={documentType}
+					style={tableStyle}
+					propsData={data}
+					sqon={sqon}
+					config={config}
+					fetchData={fetchData}
+					setSelectedTableRows={(selectedTableRows) => {
+						setSelectedTableRows(selectedTableRows);
+						setSelectedRows(selectedTableRows);
+						this.storeProperty(STORED_PROPS.SELECTED_ROWS, selectedTableRows);
+					}}
+					onPaginationChange={(state) => {
+						this.setState(state);
+						if (state.pageSize) {
+							this.storeProperty(STORED_PROPS.PAGE_SIZE, state.pageSize);
+						}
+					}}
+					onSortedChange={(sorted) => {
+						this.setState({ sorted, page: 0 });
+						onSortedChange(sorted);
+						this.storeProperty(STORED_PROPS.SORT_ORDER, sorted);
+					}}
+					defaultPageSize={pageSize}
+					defaultSorting={sorted}
+					sorted={sorted}
+					loading={loading}
+					maxPagesOptions={maxPagesOptions}
+					alwaysSorted={alwaysSorted}
+					initalSelectedTableRows={initalSelectedTableRows || this.state.selectedTableRows}
+					keepSelectedOnPageChange={sessionStorage || keepSelectedOnPageChange} // If false, this will reset the selection to empty on reload. To keep selections after reload set this to true. Use sessionStorage or specific property to set this.
+					selectedTableRows={selectedTableRows}
+				/>
+			</>
+		);
+	}
 }
-export default DataTableWithToolbar;
+
+export default withData(DataTableWithToolbar);

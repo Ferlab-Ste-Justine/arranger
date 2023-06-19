@@ -1,154 +1,109 @@
-import elasticsearch from '@elastic/elasticsearch';
-import express from 'express';
-import bodyParser from 'body-parser';
+import { Client } from '@elastic/elasticsearch';
+import { Router } from 'express';
+import morgan from 'morgan';
 
-import projectsRoutes from './projects';
-import { getProjects } from './utils/projects';
-import startProject, { getDefaultServerSideFilter } from './startProject';
-import { ES_HOST, ES_USER, ES_PASS, ES_LOG, PROJECT_ID, MAX_LIVE_VERSIONS } from './utils/config';
-import { fetchProjects } from './projects/getProjects';
+import { ENV_CONFIG } from './config';
+import { ENABLE_LOGS } from './config/constants';
+import downloadRoutes from './download';
+import getGraphQLRoutes from './graphqlRoutes';
+import getDefaultServerSideFilter from './utils/getDefaultServerSideFilter';
+
+const {
+	CONFIG_FILES_PATH,
+	DEBUG_MODE,
+	ENABLE_ADMIN,
+	ES_HOST,
+	ES_USER,
+	ES_PASS,
+	ES_LOG, //TODO: ES doesn't include a logger anymore
+	PING_PATH,
+} = ENV_CONFIG;
+
+export const buildEsClient = (esHost = '', esUser = '', esPass = '') => {
+	if (!esHost) {
+		console.error('no elasticsearch host was provided');
+	}
+
+	const esConfig = {
+		node: esHost,
+	};
+
+	if (esUser) {
+		if (!esPass) {
+			console.error('ES user was defined, but password was not');
+		}
+		esConfig['auth'] = {
+			username: esUser,
+			password: esPass,
+		};
+	}
+
+	return new Client(esConfig);
+};
 
 export const buildEsClientViaEnv = () => {
-  return buildEsClient(ES_HOST, ES_USER, ES_PASS, ES_LOG);
+	return buildEsClient(ES_HOST, ES_USER, ES_PASS);
 };
 
-export const buildEsClient = (esHost, esUser, esPass, esLog) => {
-  if (!esHost) {
-    console.error('no elasticsearch host was provided');
-  }
-
-  let esConfig = {
-    node: esHost,
-    log: esLog,
-  };
-
-  if (esUser) {
-    if (!esPass) {
-      console.error('ES user was defined, but password was not');
-    }
-    esConfig['auth'] = {
-      username: esUser,
-      password: esPass,
-    };
-  }
-  return new elasticsearch.Client(esConfig);
-};
-
-let startSingleProject = async ({
-  projectId,
-  es,
-  graphqlOptions,
-  enableAdmin,
-  getServerSideFilter,
-}) => {
-  try {
-    await startProject({
-      es,
-      id: projectId,
-      graphqlOptions,
-      enableAdmin,
-      getServerSideFilter,
-    });
-  } catch (error) {
-    console.warn(error.message);
-  }
-};
-
-export { getProjects } from './utils/projects';
 export default async ({
-  projectId = PROJECT_ID,
-  esHost = ES_HOST,
-  esUser = ES_USER,
-  esPass = ES_PASS,
-  graphqlOptions = {},
-  enableAdmin = false,
-  getServerSideFilter = getDefaultServerSideFilter,
+	configsSource = CONFIG_FILES_PATH,
+	enableAdmin = ENABLE_ADMIN,
+	enableLogs = ENABLE_LOGS,
+	esClient: customEsClient = undefined,
+	esHost = ES_HOST,
+	esPass = ES_PASS,
+	esUser = ES_USER,
+	getServerSideFilter = getDefaultServerSideFilter,
+	graphqlOptions = {},
+	pingPath = PING_PATH,
 } = {}) => {
-  enableAdmin
-    ? console.log('Application started in ADMIN mode!!')
-    : console.log('Application started in read-only mode.');
+	const esClient = customEsClient || buildEsClient(esHost, esUser, esPass);
+	const router = Router();
 
-  const es = buildEsClient(esHost, esUser, esPass);
-  if (projectId) {
-    startSingleProject({
-      projectId,
-      es,
-      graphqlOptions,
-      enableAdmin,
-      getServerSideFilter,
-    });
-  } else {
-    const { projects = [] } = await fetchProjects({ es });
-    await Promise.all(
-      projects
-        .filter((project) => project.active)
-        // .slice(0, MAX_LIVE_VERSIONS)
-        .map(async (project) => {
-          try {
-            await startSingleProject({
-              projectId: project.id,
-              es,
-              graphqlOptions,
-              enableAdmin,
-              getServerSideFilter,
-            });
-          } catch (error) {
-            console.warn(error.message);
-          }
-        }),
-    );
-  }
+	console.log('------------------------------------');
+	console.log(
+		`\nStarting Arranger server... ${
+			enableLogs ? `(in ${enableAdmin ? 'ADMIN mode!!' : 'read-only mode.'})` : ''
+		}`,
+	);
 
-  const router = express.Router();
-  router.use(bodyParser.urlencoded({ extended: false, limit: '50mb' }));
-  router.use(bodyParser.json({ limit: '50mb' }));
+	if (enableLogs) {
+		console.log('  Extensive console logging enabled.');
+		DEBUG_MODE && console.log('  (Everything but health checks)');
 
-  // The GraphQL endpoints
+		router.use(
+			morgan('dev', {
+				skip: (req, res) => {
+					// log everything but health checks on dev/debug. errors only otherwise
+					return DEBUG_MODE ? req.originalUrl.includes(pingPath) : res.statusCode < 400;
+				},
+			}),
+		);
+	}
 
-  // List all projects
-  router.use('/projects', projectsRoutes({ graphqlOptions, enableAdmin }));
+	const graphQLRoutes = await getGraphQLRoutes({
+		configsSource,
+		enableAdmin,
+		esClient,
+		getServerSideFilter,
+		graphqlOptions,
+	});
 
-  // Get project by ID
-  router.use(
-    '/:projectId',
-    (req, res, next) => {
-      // ========= step 1: attempt to run the existing project ==========
-      const projects = getProjects();
-      if (!projects.length) return next();
-      const project = projects.find(
-        (p) => p.id.toLowerCase() === req.params.projectId.toLowerCase(),
-      );
-      if (project) {
-        return project.app(req, res, next);
-      }
-      return next();
-    },
-    async (req, res, next) => {
-      // ========= step 2: if above fails, attempt to start the project =======
-      const projectId = req.params.projectId;
-      try {
-        await startSingleProject({
-          es,
-          enableAdmin,
-          graphqlOptions,
-          projectId,
-          getServerSideFilter,
-        });
-        const project = getProjects().find(
-          (p) => p.id.toLowerCase() === req.params.projectId.toLowerCase(),
-        );
-        return project.app(req, res, next);
-      } catch (err) {
-        return next();
-      }
-    },
-    (req, res) => {
-      // ========= step 3: if above fails, respond with error code =======
-      return res.status(400).send({
-        error: `no project with id ${req.params.projectId} is available`,
-      });
-    },
-  );
+	router.use('/', (req, res, next) => {
+		/* Context contents:
+			'graphQLRoutes' provides esClient, schemas, and server configs.
+			'downloadRoutes' consumes esClient, schemas, as well as download and table configs.
+		*/
+		req.context = req.context || {};
+		return next();
+	});
+	router.use('/', graphQLRoutes);
+	router.use(`/download`, downloadRoutes({ enableAdmin })); // consumes
+	router.get('/favicon.ico', (req, res) => res.status(204));
 
-  return router;
+	router.get(pingPath, (_req, res) =>
+		res.send({ message: 'Arranger is functioning correctly...' }),
+	);
+
+	return router;
 };
