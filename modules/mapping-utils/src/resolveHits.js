@@ -36,9 +36,9 @@ export const hitsToEdges = ({
   );
   return Promise.all(
     chunks.map(
-      chunk =>
+      (chunk) =>
         //Parallel.spawn output has a .then but it's not returning an actual promise
-        new Promise(resolve => {
+        new Promise((resolve) => {
           new Parallel({ hits: chunk, nestedFields, copyToSourceFields })
             .spawn(({ hits, nestedFields, copyToSourceFields }) => {
               /*
@@ -54,7 +54,7 @@ export const hitsToEdges = ({
                   const sourceField = pair[1];
                   let found = {};
                   found[copyToField] = flattenDeep(
-                    sourceField.map(path =>
+                    sourceField.map((path) =>
                       jp.query(
                         node,
                         path
@@ -71,7 +71,7 @@ export const hitsToEdges = ({
                 return foundValues;
               };
 
-              return hits.map(x => {
+              return hits.map((x) => {
                 let joinParent = (parent, field) => (parent ? `${parent}.${field}` : field);
 
                 let resolveNested = ({ node, nestedFields, parent = '' }) => {
@@ -85,7 +85,7 @@ export const hitsToEdges = ({
                     acc[field] = nestedFields.includes(fullPath)
                       ? {
                           hits: {
-                            edges: hits.map(node => ({
+                            edges: hits.map((node) => ({
                               node: Object.assign(
                                 {},
                                 node,
@@ -124,7 +124,7 @@ export const hitsToEdges = ({
                 let copied_to_nodes = resolveCopiedTo({ node: source });
                 return {
                   searchAfter: x.sort
-                    ? x.sort.map(x =>
+                    ? x.sort.map((x) =>
                         Number.isInteger(x) && !Number.isSafeInteger(x)
                           ? // TODO: figure out a way to inject ES_CONSTANTS in here from @arranger/middleware
                             // ? ES_CONSTANTS.ES_MAX_LONG //https://github.com/elastic/elasticsearch-js/issues/662
@@ -144,21 +144,21 @@ export const hitsToEdges = ({
             .then(resolve);
         }),
     ),
-  ).then(chunks => chunks.reduce((acc, chunk) => acc.concat(chunk), []));
+  ).then((chunks) => chunks.reduce((acc, chunk) => acc.concat(chunk), []));
 };
 
-export default ({ type, Parallel, getServerSideFilter }) => async (
-  obj,
-  { first = 10, offset = 0, filters, score, sort, searchAfter, trackTotalHits = true },
-  context,
-  info,
-) => {
-  let fields = getFields(info);
-  let nestedFields = type.nested_fields;
+export default ({ type, Parallel, getServerSideFilter }) =>
+  async (
+    obj,
+    { first = 10, offset = 0, filters, score, sort, searchAfter, trackTotalHits = true },
+    context,
+    info,
+  ) => {
+    let fields = getFields(info);
+    let nestedFields = type.nested_fields;
 
-  const { es } = context;
-
-  /**
+    const { es } = context;
+    /**
    * @todo: I left this chunk here for reference, in case someone actually understands what it actually is trying to do
     let query = filters;
     if (filters || score) {
@@ -173,71 +173,84 @@ export default ({ type, Parallel, getServerSideFilter }) => async (
     }
     */
 
-  const query = buildQuery({
-    nestedFields,
-    filters: compileFilter({
-      clientSideFilter: filters || { op: 'and', content: [] },
-      serverSideFilter: getServerSideFilter(context),
-    }),
-  });
-
-  let body =
-    (query && {
-      query,
-    }) ||
-    {};
-
-  if (sort && sort.length) {
-    // TODO: add query here to sort based on result. https://www.elastic.co/guide/en/elasticsearch/guide/current/nested-sorting.html
-    body.sort = sort.map(({ field, missing, order, ...rest }) => {
-      const nested_path = nestedFields
-        .filter(nestedField => field.indexOf(nestedField) === 0)
-        .reduce((deepestPath, path) => (deepestPath.length > path.length ? deepestPath : path), '');
-
-      return {
-        [field]: {
-          missing: missing
-            ? missing === 'first'
-              ? '_first'
-              : '_last'
-            : order === 'asc'
-            ? '_first'
-            : '_last',
-          order,
-          ...rest,
-          ...(nested_path?.length ? { nested: { path: nested_path } } : {}),
-        },
-      };
-    });
-  }
-
-  if (searchAfter) {
-    body.search_after = searchAfter;
-  }
-
-  const copyToSourceFields = findCopyToSourceFields(type.mapping);
-
-  let { hits } = await esSearch(es)({
-    index: type.index,
-    size: first,
-    from: offset,
-    track_total_hits: trackTotalHits,
-    _source: [
-      ...((fields.edges && Object.keys(fields.edges.node || {})) || []),
-      ...Object.values(copyToSourceFields),
-    ],
-    track_scores: !!score,
-    body,
-  });
-
-  return {
-    edges: () =>
-      hitsToEdges({
-        hits,
-        nestedFields,
-        Parallel,
-        copyToSourceFields,
+    const query = buildQuery({
+      nestedFields,
+      filters: compileFilter({
+        clientSideFilter: filters || { op: 'and', content: [] },
+        serverSideFilter: getServerSideFilter(context),
       }),
-    total: () => hits.total.value,
+    });
+
+    let body =
+      (query && {
+        query,
+      }) ||
+      {};
+
+    if (sort && sort.length) {
+      // TODO: add query here to sort based on result. https://www.elastic.co/guide/en/elasticsearch/guide/current/nested-sorting.html
+      body.sort = sort.map(({ field, missing, order, ...rest }) => {
+        // if(field === 'gene') field = "consequences.symbol"
+        const nested_path = nestedFields
+          .filter((nestedField) => field.indexOf(nestedField) === 0)
+          .reduce(
+            (deepestPath, path) => (deepestPath.length > path.length ? deepestPath : path),
+            '',
+          );
+        // console.log('the rest', JSON.stringify(nested_path), field)
+        const nested = { path: nested_path };
+
+        return {
+          [field]: {
+            missing: missing
+              ? missing === 'first'
+                ? '_first'
+                : '_last'
+              : order === 'asc'
+              ? '_first'
+              : '_last',
+            order,
+            ...rest,
+            ...(nested_path?.length ? { nested } : {}),
+          },
+        };
+      });
+    }
+
+    if (searchAfter) {
+      body.search_after = searchAfter;
+    }
+
+    const copyToSourceFields = findCopyToSourceFields(type.mapping);
+    if (!!global.middlewares.preES) {
+      global.middlewares.preES.forEach((middleware) => {
+        console.log('running middleware', middleware);
+        body = middleware(body);
+      });
+    }
+
+    console.log('FINAl ES QUERY', JSON.stringify(body), global.middlewares);
+    let { hits } = await esSearch(es)({
+      index: type.index,
+      size: first,
+      from: offset,
+      track_total_hits: trackTotalHits,
+      _source: [
+        ...((fields.edges && Object.keys(fields.edges.node || {})) || []),
+        ...Object.values(copyToSourceFields),
+      ],
+      track_scores: !!score,
+      body,
+    });
+
+    return {
+      edges: () =>
+        hitsToEdges({
+          hits,
+          nestedFields,
+          Parallel,
+          copyToSourceFields,
+        }),
+      total: () => hits.total.value,
+    };
   };
-};

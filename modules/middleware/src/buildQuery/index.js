@@ -292,8 +292,10 @@ export const opSwitch = ({ nestedFields, filter }) => {
 
 export default function ({ nestedFields, filters: rawFilters }) {
   if (Object.keys(rawFilters || {}).length === 0) return {};
-  return opSwitch({
+  const v = opSwitch({
     nestedFields,
     filter: normalizeFilters(rawFilters),
   });
+  console.log('SQON QUERY', JSON.stringify(v));
+  return v;
 }
