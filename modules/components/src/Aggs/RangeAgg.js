@@ -1,9 +1,10 @@
 import React, { Component } from 'react';
 import InputRange from 'react-input-range';
 import convert from 'convert-units';
-import _ from 'lodash';
+import { isNil } from 'lodash';
+import { css } from 'emotion';
 
-import { replaceSQON } from '../SQONView/utils';
+import { replaceFieldSQON } from '../SQONView/utils';
 import AggsWrapper from './AggsWrapper';
 import formatNumber from '../utils/formatNumber';
 
@@ -17,16 +18,16 @@ const SUPPORTED_CONVERSIONS = {
 };
 
 const supportedConversionFromUnit = (unit) =>
-  unit ? SUPPORTED_CONVERSIONS[convert().describe(unit).measure] : null;
+  unit ? SUPPORTED_CONVERSIONS[convert().describe(unit).measure] : [];
 
 const round = (x) => Math.round(x * 100) / 100;
 
-const RangeLabel = ({ children, isTop, isLeft, ...props }) => (
+const RangeLabel = ({ children, isTop, position, ...props }) => (
   <div
     {...props}
-    css={`
+    css={css`
       position: absolute;
-      ${isLeft ? `left` : `right`}: 0;
+      ${position === 'right' && `${position}: 0;`}
       top: ${isTop ? `-` : ``}1.2rem;
     `}
   >
@@ -41,136 +42,190 @@ const getLabelId = (displayName) => {
 class RangeAgg extends Component {
   constructor(props) {
     super(props);
-    let {
-      stats: { min, max },
+    const {
+      sqonValues,
+      stats: { max = 0, min = 0 },
       unit,
-      value,
     } = props;
+
+    const supportedConversions = supportedConversionFromUnit(unit);
+
     this.state = {
-      min,
-      max,
-      unit: unit,
-      displayUnit: supportedConversionFromUnit(unit)?.[0],
-      value: {
-        min: !_.isNil(value) ? value.min || min : min,
-        max: !_.isNil(value) ? value.max || max : max,
+      currentValues: {
+        max: sqonValues?.max || max,
+        min: sqonValues?.min || min,
       },
+      displayUnit: supportedConversions?.includes(unit)
+        ? unit // use unit selected in Admin UI as default, if available here
+        : supportedConversions?.[0],
+      supportedConversions,
     };
   }
 
   UNSAFE_componentWillReceiveProps(nextProps) {
     const {
-      stats: { min, max },
-      value: externalVal,
+      sqonValues: { max: sqonMax, min: sqonMin } = {},
+      stats: { max: newMax, min: newMin } = {},
     } = nextProps;
-    let { value } = this.state;
+    const { stats: { max: oldMax, min: oldMin } = {} } = this.props;
+    const { currentValues: { max: selectedMax, min: selectedMin } = {} } = this.state;
+
+    const resetMax = isNil(sqonMax)
+      ? isNil(oldMax) || (newMax > oldMax && oldMax === selectedMax)
+      : newMax < selectedMax || newMin > selectedMax;
+    const resetMin = isNil(sqonMin)
+      ? isNil(oldMin) || (newMin < oldMin && oldMin === selectedMin)
+      : newMin > selectedMin || newMax < selectedMin;
+
     this.setState({
-      min,
-      max,
-      value: {
-        min: Math.max(externalVal?.min || value.min, min),
-        max: Math.min(externalVal?.max || value.max, max),
+      currentValues: {
+        max: resetMax ? newMax : Math.min(sqonMax || selectedMax, newMax),
+        min: resetMin ? newMin : Math.max(sqonMin || selectedMin, newMin),
       },
     });
   }
 
   onChangeComplete = () => {
-    let { field, handleChange, displayName } = this.props;
-    let { value, displayUnit } = this.state;
-    const [min, max] = [value.min, value.max].map((x) => round(x));
+    let {
+      displayName,
+      field,
+      handleChange,
+      stats: { max, min },
+    } = this.props;
+    let { currentValues, displayUnit } = this.state;
+    const [currentMax, currentMin] = [currentValues.max, currentValues.min].map((x) => round(x));
 
-    handleChange?.({
+    return handleChange?.({
       field: {
         displayName,
         displayUnit,
         field,
       },
-      value,
-      min,
-      max,
       generateNextSQON: (sqon) =>
-        replaceSQON(
+        replaceFieldSQON(
+          field,
           {
             op: 'and',
             content: [
-              { op: '>=', content: { field, value: min } },
-              { op: '<=', content: { field, value: max } },
+              ...(currentMin > min ? [{ op: '>=', content: { field, value: currentMin } }] : []),
+              ...(currentMax < max ? [{ op: '<=', content: { field, value: currentMax } }] : []),
             ],
           },
           sqon,
         ),
+      max: currentMax,
+      min: currentMin,
+      value: currentValues,
     });
   };
 
-  setValue = ({ min, max }) => {
-    if (round(min) >= round(this.state.min) && round(max) <= round(this.state.max)) {
-      this.setState({ value: { min: round(min), max: round(max) } });
+  setNewUnit = (event) => this.setState({ displayUnit: event.target.value });
+
+  setNewValue = ({ max: newMax, min: newMin }) => {
+    const {
+      stats: { max, min },
+    } = this.props;
+
+    if (round(newMax) <= round(max) && round(newMin) >= round(min)) {
+      this.setState({ currentValues: { max: round(newMax), min: round(newMin) } });
     }
   };
 
   formatRangeLabel = (value, type) => {
-    const { formatLabel } = this.props;
-    if (formatLabel) return formatLabel(value, type);
-    const { unit, displayUnit } = this.state;
-    return formatNumber(
-      unit && displayUnit
-        ? Math.round(convert(value).from(unit).to(displayUnit) * 100) / 100
-        : value,
+    const { formatLabel, unit } = this.props;
+    const { displayUnit } = this.state;
+
+    return (
+      formatLabel?.(value, type) ||
+      formatNumber(
+        unit && displayUnit
+          ? Math.round(convert(value).from(unit).to(displayUnit) * 100) / 100
+          : value,
+      )
     );
   };
 
   render() {
-    let { step, displayName = 'Unnamed Field', collapsible = true, WrapperComponent } = this.props;
-    let { min, max, value, unit, displayUnit } = this.state;
-    const supportedConversions = supportedConversionFromUnit(unit);
+    const {
+      collapsible = true,
+      displayName = 'Unnamed Field',
+      field,
+      rangeStep,
+      stats: { max, min },
+      step,
+      type,
+      WrapperComponent,
+    } = this.props;
+    const { currentValues, displayUnit, supportedConversions } = this.state;
+
+    const hasData = [!isNil(min), !isNil(max)].every(Boolean);
+
+    const dataFields = {
+      'data-available': hasData,
+      ...(field && { 'data-field': field }),
+      ...(type && { 'data-type': type }),
+    };
+
+    const minIsMax = min === max;
+    const unusable = min + rangeStep === max || minIsMax;
+
     return (
       <AggsWrapper
+        dataFields={dataFields}
         displayName={`${displayName}${
           displayUnit ? ` (${convert().describe(displayUnit).plural})` : ``
         }`}
         {...{ WrapperComponent, collapsible }}
       >
-        {[!_.isNil(min), !_.isNil(max)].every(Boolean) && (
+        {hasData ? (
           <div className="range-wrapper">
-            <div className="unit-wrapper">
-              {supportedConversions?.length > 1 &&
-                supportedConversions
-                  ?.map((x) => convert().describe(x))
-                  ?.map((x) => ({ ...x, active: x.abbr === displayUnit }))
-                  ?.map(({ abbr, plural, active }) => (
-                    <span key={abbr}>
+            {supportedConversions.length > 1 && (
+              <div className="unit-wrapper">
+                {supportedConversions
+                  .map((x) => convert().describe(x))
+                  .map((x) => ({ ...x, active: x.abbr === displayUnit }))
+                  .map(({ abbr, plural, active }) => (
+                    <label htmlFor={abbr} key={abbr}>
                       <input
-                        type="radio"
-                        id={abbr}
-                        value={abbr}
                         checked={active}
-                        onChange={(e) => this.setState({ displayUnit: e.target.value })}
+                        id={abbr}
+                        onChange={this.setNewUnit}
+                        type="radio"
+                        value={abbr}
                       />
-                      <label htmlFor={abbr}>{plural}</label>
-                    </span>
+                      {plural}
+                    </label>
                   ))}
-            </div>
-            <div className="input-range-wrapper">
-              <RangeLabel isTop isLeft>
-                {this.formatRangeLabel(value.min)}
-              </RangeLabel>
-              <RangeLabel isTop>{this.formatRangeLabel(value.max)}</RangeLabel>
+              </div>
+            )}
+
+            <div className={`input-range-wrapper${unusable ? ' disabled' : ''}`}>
+              <RangeLabel isTop>{this.formatRangeLabel(currentValues.min)}</RangeLabel>
+              {!minIsMax && (
+                <RangeLabel isTop position="right">
+                  {this.formatRangeLabel(currentValues.max)}
+                </RangeLabel>
+              )}
+
               <InputRange
                 ariaLabelledby={getLabelId(displayName)}
+                className={unusable ? 'disabled' : ''}
                 draggableTrack
+                disabled={unusable}
                 step={step}
                 minValue={min}
                 maxValue={max}
-                value={value}
+                value={currentValues}
                 formatLabel={this.formatRangeLabel}
-                onChange={(x) => this.setValue(x)}
+                onChange={this.setNewValue}
                 onChangeComplete={this.onChangeComplete}
               />
-              <RangeLabel isLeft>{this.formatRangeLabel(min)}</RangeLabel>
-              <RangeLabel>{this.formatRangeLabel(max)}</RangeLabel>
+
+              <RangeLabel>{this.formatRangeLabel(currentValues.min)}</RangeLabel>
+              {!minIsMax && <RangeLabel position="right">{this.formatRangeLabel(max)}</RangeLabel>}
               <span
                 id={getLabelId(displayName)}
-                css={`
+                css={css`
                   position: absolute;
                   height: 0;
                   width: 0;
@@ -182,6 +237,8 @@ class RangeAgg extends Component {
               </span>
             </div>
           </div>
+        ) : (
+          <span className="no-data">No data available</span>
         )}
       </AggsWrapper>
     );

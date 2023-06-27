@@ -2,12 +2,15 @@ import React from 'react';
 import { compose } from 'recompose';
 import Component from 'react-component-component';
 import { truncate } from 'lodash';
+import { format } from 'date-fns';
 
 import SQONView, { Value, Bubble, Field } from '../SQONView';
 import { fetchExtendedMapping } from '../utils/api';
 import internalTranslateSQONValue from '../utils/translateSQONValue';
 
 export const CurrentSQON = ({
+  dateFormat = 'yyyy-MM-dd',
+  emptyMessage,
   sqon,
   setSQON,
   extendedMapping,
@@ -18,6 +21,7 @@ export const CurrentSQON = ({
   ...props
 }) => (
   <SQONView
+    emptyMessage={emptyMessage}
     sqon={sqon}
     FieldCrumb={({ field, nextSQON, ...props }) => (
       <Field {...{ field, ...props }}>
@@ -30,7 +34,11 @@ export const CurrentSQON = ({
           compose(
             translateSQONValue,
             internalTranslateSQONValue,
-          )((findExtendedMappingField(field)?.displayValues || {})[value] || value),
+          )(
+            (findExtendedMappingField(field)?.type === 'date' && format(value, dateFormat)) ||
+              (findExtendedMappingField(field)?.displayValues || {})[value] ||
+              value,
+          ),
           { length: valueCharacterLimit || Infinity },
         )}
       </Value>
@@ -54,9 +62,11 @@ const CurrentSQONState = ({ sqon, setSQON, graphqlField, projectId, ...props }) 
     <Component
       initialState={{ extendedMapping: null }}
       didMount={({ state: { extendedMapping }, setState }) =>
-        fetchExtendedMapping({ graphqlField, projectId }).then(({ extendedMapping }) => {
-          return setState({ extendedMapping });
-        })
+        fetchExtendedMapping({ graphqlField, projectId, api: props.api }).then(
+          ({ extendedMapping }) => {
+            return setState({ extendedMapping });
+          },
+        )
       }
     >
       {({ state: { extendedMapping } }) => (

@@ -20,8 +20,8 @@ function ArrowIcon({ isOpen }) {
 
 class DropDown extends React.Component {
   state = { isOpen: false };
-  handleToggleMenu = () => {
-    this.setState(({ isOpen }) => ({ isOpen: !isOpen }));
+  handleToggleMenu = (event) => {
+    event.target?.attributes?.disabled || this.setState(({ isOpen }) => ({ isOpen: !isOpen }));
   };
   handleStateChange = (changes) => {
     const { isOpen, type } = changes;
@@ -29,9 +29,21 @@ class DropDown extends React.Component {
       this.setState({ isOpen });
     }
   };
+
   render() {
     const { isOpen } = this.state;
-    const { items, onChange, itemToString, children, align = 'right' } = this.props;
+    const {
+      hasSelectedRows,
+      items,
+      onChange = () => {},
+      itemToString,
+      children,
+      align = 'right',
+      singleSelect = false,
+    } = this.props;
+
+    const disableDownloads =
+      items.every((item) => item.exporterRequiresRowSelection) && !hasSelectedRows;
 
     return (
       <Downshift
@@ -56,34 +68,53 @@ class DropDown extends React.Component {
             <button
               aria-label={`Show columns to select`}
               className="dropDownButton"
-              {...getButtonProps({ onClick: this.handleToggleMenu })}
+              {...getButtonProps({
+                disabled: disableDownloads,
+                onClick: this.handleToggleMenu,
+              })}
             >
               <div className="dropDownButtonContent">{children}</div>
               <ArrowIcon isOpen={isOpen} />
             </button>
-            {!isOpen ? null : (
+            {isOpen && (
               <div
-                className="dropDownContent"
+                className={`dropDownContent ${singleSelect ? 'single' : 'multiple'}`}
                 style={{
                   right: align === 'right' ? 0 : 'auto',
                   left: align === 'right' ? 'auto' : 0,
                 }}
+                {...(singleSelect && { onClick: this.handleToggleMenu })}
               >
-                {items.map((item, index) => (
-                  <div
-                    className="dropDownContentElement"
-                    key={item.id || itemToString(item)}
-                    {...getItemProps({ item, index })}
-                  >
-                    {itemToString(item)}
-                    <input
-                      readOnly
-                      type="checkbox"
-                      checked={selectedItem.indexOf(item) > -1}
-                      aria-label={`Select column ${item.id || itemToString(item)}`}
-                    />
-                  </div>
-                ))}
+                {items.map((item, index) => {
+                  const { id, ...itemProps } = getItemProps({
+                    item,
+                    index,
+                    disabled: item.exporterRequiresRowSelection && !hasSelectedRows,
+                  });
+                  const label = itemToString(item);
+                  const labelIsComponent = React.isValidElement(label);
+                  return (
+                    <div
+                      className={`dropDownContentElement${
+                        labelIsComponent ? ' custom' : ' clickable'
+                      }`}
+                      key={item.id || id}
+                      {...itemProps}
+                    >
+                      {label}
+                      {!(singleSelect || labelIsComponent) && (
+                        <input
+                          readOnly
+                          type="checkbox"
+                          checked={selectedItem.indexOf(item) > -1}
+                          aria-label={`Select column ${
+                            item.id || (typeof label === 'string' ? label : id)
+                          }`}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

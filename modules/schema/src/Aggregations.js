@@ -11,6 +11,8 @@ export let typeDefs = `
     doc_count: Int
     key: String
     key_as_string: String
+    top_hits(_source:[String], size:Int): JSON
+    filter_by_term(filter: JSON): JSON 
   }
 
   type NumericAggregations {
@@ -20,6 +22,7 @@ export let typeDefs = `
 
   type Aggregations {
     bucket_count: Int
-    buckets: [Bucket]
+    buckets(max:Int): [Bucket]
+    cardinality(precision_threshold:Int): Int
   }
 `;

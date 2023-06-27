@@ -3,8 +3,8 @@
 #######################################################
 FROM node:13.13.0-alpine as builder
 
-ENV APP_UID=9999
-ENV APP_GID=9999
+ENV APP_UID=1000
+ENV APP_GID=1000
 ENV APP_HOME=/app
 ENV APP_USER=node
 
@@ -28,8 +28,8 @@ RUN npm ci \
 #######################################################
 FROM builder as server
 
-ENV APP_UID=9999
-ENV APP_GID=9999
+ENV APP_UID=1000
+ENV APP_GID=1000
 ENV APP_HOME=/app
 ENV APP_USER=node
 
@@ -46,15 +46,15 @@ CMD ["npm", "run", "run-prod-server"]
 #######################################################
 FROM builder as builder2
 
-ENV APP_UID=9999
-ENV APP_GID=9999
+ENV APP_UID=1000
+ENV APP_GID=1000
 ENV APP_HOME=/app
 ENV APP_USER=node
 
 WORKDIR $APP_HOME
 
 RUN cd modules/admin-ui \
-	&& REACT_APP_ARRANGER_ADMIN_ROOT=/admin/graphql npm run build
+	&& npm run build
 RUN cp -r modules/admin-ui/build ./arranger-admin
 
 #######################################################
@@ -62,14 +62,16 @@ RUN cp -r modules/admin-ui/build ./arranger-admin
 #######################################################
 FROM nginx:1.17.9-alpine as ui
 
-ENV APP_UID=9999
-ENV APP_GID=9999
+ENV APP_UID=1000
+ENV APP_GID=1000
 ENV APP_USER=node
 ENV APP_HOME=/app
 ENV PORT=3000
-ENV NGINX_CONF_PATH=/etc/nginx/nginx.conf
+ENV REACT_APP_BASE_URL=${REACT_APP_BASE_URL:-''}
 
-COPY docker/ui/nginx.conf.template /etc/nginx/nginx.conf.template
+ENV NGINX_PATH=${NGINX_PATH:-/etc/nginx}
+
+COPY docker/ui/. $NGINX_PATH/.
 
 RUN addgroup -S -g $APP_GID $APP_USER \
 	&& adduser -S -u $APP_UID -G $APP_USER $APP_USER \
@@ -81,13 +83,22 @@ RUN addgroup -S -g $APP_GID $APP_USER \
 	&& chown -R $APP_UID:$APP_GID $APP_HOME \
 	&& rm -rf /var/cache/apk/*
 
+## this is throwaway code
+# hardwired folder name for k8s writable path, while we change the K8s helm charts to take a config map
+# creates a link to a yet inexistent file, which will be either fullfilled by entrypoint, or replaced by it.
+RUN if [ $(expr $HOSTNAME : k8s) != 0 ]; then \
+	ln -s /custom-nginx/env-config.js $NGINX_PATH/env-config.js; \
+fi
+## end of throwaway code ^^^
+
 COPY --from=builder2 /app $APP_HOME
+RUN chown -R $APP_UID:$APP_GID $APP_HOME/arranger-admin \
+	&& ln -s $NGINX_PATH/env-config.js $APP_HOME/arranger-admin/env-config.js
 
 WORKDIR $APP_HOME
-
 USER $APP_USER
 
-CMD envsubst '$PORT,$REACT_APP_ARRANGER_ADMIN_ROOT' < /etc/nginx/nginx.conf.template > $NGINX_CONF_PATH && exec nginx -c $NGINX_CONF_PATH -g 'daemon off;'
+CMD ["/bin/sh", "/etc/nginx/server.sh"]
 
 #######################################################
 # Test
