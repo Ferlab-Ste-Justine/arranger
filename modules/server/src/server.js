@@ -63,12 +63,14 @@ export default async ({
   graphqlOptions = {},
   enableAdmin = false,
   getServerSideFilter = getDefaultServerSideFilter,
+  middlewares,
 } = {}) => {
   enableAdmin
     ? console.log('Application started in ADMIN mode!!')
     : console.log('Application started in read-only mode.');
 
   const es = buildEsClient(esHost, esUser, esPass);
+  global.middlewares = middlewares;
   if (projectId) {
     startSingleProject({
       projectId,
