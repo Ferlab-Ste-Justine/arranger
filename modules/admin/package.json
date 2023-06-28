@@ -1,6 +1,6 @@
 {
   "name": "@ferlab/arranger-admin",
-  "version": "2.20.0-rc4",
+  "version": "2.20.0-rc5",
   "description": "Admin API for the Arranger server in graphql",
   "engineStrict": true,
   "engines": {
@@ -50,8 +50,8 @@
   "license": "APLv2",
   "dependencies": {
     "@elastic/elasticsearch": "7.5.0",
-    "@ferlab/arranger-mapping-utils": "^2.20.0-rc4",
-    "@ferlab/arranger-schema": "^2.20.0-rc4",
+    "@ferlab/arranger-mapping-utils": "^2.20.0-rc5",
+    "@ferlab/arranger-schema": "^2.20.0-rc5",
     "apollo-link-http": "^1.5.5",
     "apollo-server": "^2.14.2",
     "apollo-server-express": "^2.14.2",

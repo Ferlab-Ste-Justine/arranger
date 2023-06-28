@@ -1,4 +1,4 @@
-import { buildQuery } from '@arranger/middleware';
+import { buildQuery } from '@ferlab/arranger-middleware';
 import getFields from 'graphql-fields';
 import { chunk } from 'lodash';
 
