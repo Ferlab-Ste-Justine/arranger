@@ -1,10 +1,18 @@
 import { get, isEmpty, uniq } from 'lodash';
 import uuid from 'uuid/v4';
-import { CONSTANTS, buildQuery } from '@arranger/middleware';
+import { CONSTANTS, buildQuery } from '@ferlab/arranger-middleware';
 import esSearch from './utils/esSearch';
 import compileFilter from './utils/compileFilter';
 
-const retrieveSetIds = async ({ es, index, query, path, sort, BULK_SIZE = 1000, trackTotalHits = true  }) => {
+const retrieveSetIds = async ({
+  es,
+  index,
+  query,
+  path,
+  sort,
+  BULK_SIZE = 1000,
+  trackTotalHits = true,
+}) => {
   const search = async ({ searchAfter } = {}) => {
     const body = {
       ...(!isEmpty(query) && { query }),
@@ -18,12 +26,12 @@ const retrieveSetIds = async ({ es, index, query, path, sort, BULK_SIZE = 1000, 
       track_total_hits: trackTotalHits,
       body,
     });
-    const ids = response.hits.hits.map(x =>
+    const ids = response.hits.hits.map((x) =>
       get(x, `_source.${path.split('__').join('.')}`, x._id || ''),
     );
 
     const nextSearchAfter = sort
-      .map(({ field }) => response.hits.hits.map(x => x._source[field] || x[field]))
+      .map(({ field }) => response.hits.hits.map((x) => x._source[field] || x[field]))
       .reduce((acc, vals) => [...acc, ...vals.slice(-1)], []);
 
     return {
@@ -40,46 +48,44 @@ const retrieveSetIds = async ({ es, index, query, path, sort, BULK_SIZE = 1000, 
   return handleResult(await search());
 };
 
-export const saveSet = ({ types, getServerSideFilter }) => async (
-  obj,
-  { type, userId, sqon, path, sort, refresh = 'WAIT_FOR' },
-  context,
-) => {
-  const { nested_fields: nestedFields, index } = types.find(([, x]) => x.name === type)[1];
-  const { es, projectId } = context;
+export const saveSet =
+  ({ types, getServerSideFilter }) =>
+  async (obj, { type, userId, sqon, path, sort, refresh = 'WAIT_FOR' }, context) => {
+    const { nested_fields: nestedFields, index } = types.find(([, x]) => x.name === type)[1];
+    const { es, projectId } = context;
 
-  const query = buildQuery({
-    nestedFields,
-    filters: compileFilter({
-      clientSideFilter: sqon,
-      serverSideFilter: getServerSideFilter(context),
-    }),
-  });
-  const ids = await retrieveSetIds({
-    es,
-    index,
-    query,
-    path,
-    sort: sort && sort.length ? sort : [{ field: '_id', order: 'asc' }],
-  });
+    const query = buildQuery({
+      nestedFields,
+      filters: compileFilter({
+        clientSideFilter: sqon,
+        serverSideFilter: getServerSideFilter(context),
+      }),
+    });
+    const ids = await retrieveSetIds({
+      es,
+      index,
+      query,
+      path,
+      sort: sort && sort.length ? sort : [{ field: '_id', order: 'asc' }],
+    });
 
-  const body = {
-    setId: uuid(),
-    createdAt: Date.now(),
-    ids,
-    type,
-    path,
-    sqon,
-    userId,
-    size: ids.length,
+    const body = {
+      setId: uuid(),
+      createdAt: Date.now(),
+      ids,
+      type,
+      path,
+      sqon,
+      userId,
+      size: ids.length,
+    };
+
+    await es.index({
+      index: CONSTANTS.ES_ARRANGER_SET_INDEX,
+      id: body.setId,
+      refresh: refresh.toLowerCase(),
+      body,
+    });
+
+    return body;
   };
-
-  await es.index({
-    index: CONSTANTS.ES_ARRANGER_SET_INDEX,
-    id: body.setId,
-    refresh: refresh.toLowerCase(),
-    body,
-  });
-
-  return body;
-};

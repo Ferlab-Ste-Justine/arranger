@@ -1,5 +1,5 @@
 import { Client } from '@elastic/elasticsearch';
-import { mappingToMatchBoxState as extendedFieldsToMatchBoxState } from '@arranger/mapping-utils';
+import { mappingToMatchBoxState as extendedFieldsToMatchBoxState } from '@ferlab/arranger-mapping-utils';
 import { I_GqlExtendedFieldMapping } from '../ExtendedMapping/types';
 import {
   I_MatchBoxField,
@@ -24,44 +24,45 @@ export const createMatchboxState = ({
   return { state: fields, timestamp: timestamp() };
 };
 
-export const getMatchBoxState = (es: Client) => async ({
-  graphqlField,
-  projectId,
-}: I_MatchBoxStateQueryInput): Promise<I_MatchBoxState> => {
-  const currentMetadata = (await getProjectStorageMetadata(es)(projectId)).find(
-    (i) => i.name === graphqlField,
-  );
-  return currentMetadata.config['matchbox-state'];
-};
-
-export const saveMatchBoxState = (es: Client) => async ({
-  graphqlField,
-  projectId,
-  state: updatedMatchboxFields,
-}: I_SaveMatchBoxStateMutationInput): Promise<I_MatchBoxState> => {
-  const currentMetadata = (await getProjectStorageMetadata(es)(projectId)).find(
-    (i) => i.name === graphqlField,
-  );
-  const currentMatchboxFields = currentMetadata.config['matchbox-state'].state;
-  const newMatchboxState: I_MatchBoxState = {
-    timestamp: timestamp(),
-    state: replaceBy(
-      currentMatchboxFields,
-      updatedMatchboxFields,
-      ({ field: field1 }, { field: field2 }) => field1 === field2,
-    ),
+export const getMatchBoxState =
+  (es: Client) =>
+  async ({ graphqlField, projectId }: I_MatchBoxStateQueryInput): Promise<I_MatchBoxState> => {
+    const currentMetadata = (await getProjectStorageMetadata(es)(projectId)).find(
+      (i) => i.name === graphqlField,
+    );
+    return currentMetadata.config['matchbox-state'];
   };
 
-  await updateProjectIndexMetadata(es)({
+export const saveMatchBoxState =
+  (es: Client) =>
+  async ({
+    graphqlField,
     projectId,
-    metaData: {
-      index: currentMetadata.index,
-      name: currentMetadata.name,
-      config: {
-        'matchbox-state': newMatchboxState,
-      },
-    },
-  });
+    state: updatedMatchboxFields,
+  }: I_SaveMatchBoxStateMutationInput): Promise<I_MatchBoxState> => {
+    const currentMetadata = (await getProjectStorageMetadata(es)(projectId)).find(
+      (i) => i.name === graphqlField,
+    );
+    const currentMatchboxFields = currentMetadata.config['matchbox-state'].state;
+    const newMatchboxState: I_MatchBoxState = {
+      timestamp: timestamp(),
+      state: replaceBy(
+        currentMatchboxFields,
+        updatedMatchboxFields,
+        ({ field: field1 }, { field: field2 }) => field1 === field2,
+      ),
+    };
 
-  return newMatchboxState;
-};
+    await updateProjectIndexMetadata(es)({
+      projectId,
+      metaData: {
+        index: currentMetadata.index,
+        name: currentMetadata.name,
+        config: {
+          'matchbox-state': newMatchboxState,
+        },
+      },
+    });
+
+    return newMatchboxState;
+  };

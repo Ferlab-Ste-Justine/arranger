@@ -19,6 +19,8 @@
     "strictNullChecks": false,
     "experimentalDecorators": true,
     "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "types": [],
     "lib": [
       "es5",
       "es6",
@@ -35,5 +37,6 @@
       "esnext"
     ]
   },
-  "include": ["src/**/*", "__tests__/**/*"]
+  "include": ["src/**/*", "__tests__/**/*"],
+  "exclude": ["node_modules", "./node_modules", "./node_modules/*"]
 }

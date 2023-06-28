@@ -1,10 +1,13 @@
 {
-  "name": "@arranger/admin",
-  "version": "2.19.4",
+  "name": "@ferlab/arranger-admin",
+  "version": "2.20.0-rc3",
   "description": "Admin API for the Arranger server in graphql",
   "engineStrict": true,
   "engines": {
     "node": ">= 8.9.0"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "devDependencies": {
     "husky": "^4.3.0",
@@ -17,7 +20,8 @@
     "tslint": "~5.11.0",
     "tslint-config-prettier": "1.14.0",
     "tslint-microsoft-contrib": "~5.2.0",
-    "tsutils": "~3.0.0"
+    "tsutils": "~3.0.0",
+    "typescript": "5.1.5"
   },
   "watch": {
     "lint": {
@@ -29,6 +33,7 @@
     }
   },
   "scripts": {
+    "build-js": "mkdir -p src && babel src --out-dir dist",
     "clean": "rimraf coverage build tmp",
     "build": "tsc -p tsconfig.release.json",
     "watch": "rm -rf dist && tsc -w -p tsconfig.release.json",
@@ -44,9 +49,9 @@
   "author": "Minh Ha",
   "license": "APLv2",
   "dependencies": {
-    "@arranger/mapping-utils": "^2.19.4",
-    "@arranger/schema": "^2.19.4",
     "@elastic/elasticsearch": "7.5.0",
+    "@ferlab/arranger-mapping-utils": "^2.20.0-rc3",
+    "@ferlab/arranger-schema": "^2.20.0-rc2",
     "apollo-link-http": "^1.5.5",
     "apollo-server": "^2.14.2",
     "apollo-server-express": "^2.14.2",

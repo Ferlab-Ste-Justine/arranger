@@ -1,5 +1,5 @@
 import { PassThrough } from 'stream';
-import { buildQuery, esToSafeJsInt } from '@arranger/middleware';
+import { buildQuery, esToSafeJsInt } from '@ferlab/arranger-middleware';
 import { DOWNLOAD_STREAM_BUFFER_SIZE } from '../utils/config';
 import { getProject } from './projects';
 

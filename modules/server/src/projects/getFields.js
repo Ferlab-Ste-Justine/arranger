@@ -1,4 +1,4 @@
-import { extendFields, extendMapping, loadExtendedFields } from '@arranger/mapping-utils';
+import { extendFields, extendMapping, loadExtendedFields } from '@ferlab/arranger-mapping-utils';
 
 import getIndexPrefix from '../utils/getIndexPrefix';
 import initializeExtendedFields from '../utils/initializeExtendedFields';

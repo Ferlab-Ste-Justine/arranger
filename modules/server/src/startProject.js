@@ -1,14 +1,14 @@
 import { ApolloServer } from 'apollo-server-express';
 import express from 'express';
-import makeSchema from '@arranger/schema';
-import { extendFields, addMappingsToTypes } from '@arranger/mapping-utils';
+import makeSchema from '@ferlab/arranger-schema';
+import { extendFields, addMappingsToTypes } from '@ferlab/arranger-mapping-utils';
 import { fetchMappings } from './utils/fetchMappings';
 import mapHits from './utils/mapHits';
 import { setProject } from './utils/projects';
 import download from './download';
 import getIndexPrefix from './utils/getIndexPrefix';
-import { setsMapping } from '@arranger/schema';
-import { CONSTANTS } from '@arranger/middleware';
+import { setsMapping } from '@ferlab/arranger-schema';
+import { CONSTANTS } from '@ferlab/arranger-middleware';
 import getTypes from './utils/getTypes';
 import expressPlayground from 'graphql-playground-middleware-express';
 
