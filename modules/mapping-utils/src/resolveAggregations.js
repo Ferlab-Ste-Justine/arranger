@@ -46,6 +46,23 @@ export default ({ type, getServerSideFilter }) =>
     });
 
     const body = Object.keys(query || {}).length ? { query, aggs } : { aggs };
+
+    if (global && global.weightedAverages) {
+      weightedAverages.forEach((weightedAvg) => {
+        body.aggs[`${weightedAvg.field}:global`].aggs[`${weightedAvg.field}:filtered`].aggs[
+          `${weightedAvg.field}:weighted_avg`
+        ] = {
+          weighted_avg: {
+            value: {
+              field: weightedAvg.field,
+            },
+            weight: {
+              field: weightedAvg.weight,
+            },
+          },
+        };
+      });
+    }
     const response = await esSearch(es)({
       index: type.index,
       size: 0,
@@ -57,5 +74,13 @@ export default ({ type, getServerSideFilter }) =>
       includeMissing: include_missing,
     });
 
-    return Object.entries(aggregations).reduce(toGraphqlField, {});
+    const flattened = Object.entries(aggregations).reduce(toGraphqlField, {});
+
+    if (global && global.weightedAverages) {
+      weightedAverages.forEach(({ field }) => {
+        flattened[field].weighted_avg =
+          response.aggregations[`${field}:global`][`${field}:filtered`][`${field}:weighted_avg`];
+      });
+    }
+    return flattened;
   };

@@ -1,7 +1,15 @@
 {
   "lerna": "2.5.1",
   "version": "2.19.4",
-  "packages": ["integration-tests/**", "modules/**"],
+  "private": true,
+  "packages": [
+    "@ferlab/arranger-middleware",
+    "@ferlab/arranger-mapping-utils",
+    "@ferlab/arranger-schema",
+    "@ferlab/arranger-server"
+  ],
+  "npmClient": "yarn",
+  "useWorkspaces": true,
   "command": {
     "version": {
       "npmClientArgs": ["--legacy-peer-deps"]
