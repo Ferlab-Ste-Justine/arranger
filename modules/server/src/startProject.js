@@ -160,6 +160,9 @@ export const createProjectEndpoint = async ({
   projectApp.use(`/`, (req, res, next) => {
     req.context = req.context || {};
     req.context.es = es;
+    global.weightedAverages = req.body.variables.weightedAverages || null;
+    req.body.query = req.body.query.replaceAll(', $weightedAverages: JSON', ``);
+    req.body.query = req.body.query.replaceAll(', weightedAverages: $weightedAverages', ``);
     next();
   });
 

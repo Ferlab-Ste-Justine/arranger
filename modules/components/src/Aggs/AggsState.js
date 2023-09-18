@@ -31,6 +31,7 @@ export const queryFromAgg = ({ field, type }) =>
           count
           avg
           sum
+          weighted_avg 
         }
       }
       `;

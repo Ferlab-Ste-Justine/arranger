@@ -3,10 +3,17 @@
     "type": "git",
     "url": "https://github.com/overture-stack/arranger.git"
   },
+  "private": true,
+  "workspaces": [
+    "./modules/middleware",
+    "./modules/mapping-utils",
+    "./modules/schema",
+    "./modules/server"
+  ],
   "license": "SEE LICENSE IN LICENSE",
   "scripts": {
-    "watch": "npm run bootstrap && npm run lerna -- run --parallel watch",
-    "bootstrap": "lerna bootstrap --hoist",
+    "watch": "npm run bootstrap --hoist && npm run lerna -- run --parallel watch",
+    "bootstrap": "lerna bootstrap",
     "lerna": "lerna",
     "link": "npm-link-shared modules",
     "publish::ci": "lerna publish from-package --yes --no-verify-access --force-publish=*",
@@ -52,8 +59,7 @@
     "graphql-fields": "^2.0.3",
     "husky": "^4.3.0",
     "jest": "^29.2.2",
-    "lerna": "^6.4.1",
-    "node-sass": "^4.14.1",
+    "lerna": "^6.6.2",
     "npm-link-shared": "^0.5.3",
     "paralleljs": "^1.1.0",
     "prettier": "^2.1.2",

@@ -6,6 +6,10 @@ export let typeDefs = `
     avg: Float
     sum: Float
   }
+  
+  type WeightedAvg {
+    value: Float
+  }
 
   type Bucket {
     doc_count: Int
@@ -17,6 +21,7 @@ export let typeDefs = `
 
   type NumericAggregations {
     stats: Stats
+    weighted_avg: WeightedAvg
     histogram(interval: Float): Aggregations
   }
 
