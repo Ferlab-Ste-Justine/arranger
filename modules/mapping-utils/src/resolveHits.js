@@ -256,6 +256,12 @@ export default ({ type, Parallel, getServerSideFilter }) =>
       body,
     });
 
+    if (!!global.middlewares?.postES) {
+      global.middlewares.postES.forEach((middleware) => {
+        body = middleware(body, hits);
+      });
+    }
+
     return {
       edges: () =>
         hitsToEdges({
