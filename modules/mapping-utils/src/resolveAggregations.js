@@ -45,7 +45,7 @@ export default ({ type, getServerSideFilter }) =>
       aggregationsFilterThemselves: aggregations_filter_themselves,
     });
 
-    const body = Object.keys(query || {}).length ? { query, aggs } : { aggs };
+    let body = Object.keys(query || {}).length ? { query, aggs } : { aggs };
 
     if (global && global.weightedAverages) {
       global.weightedAverages.forEach((weightedAvg) => {
@@ -66,6 +66,12 @@ export default ({ type, getServerSideFilter }) =>
             },
           },
         };
+      });
+    }
+
+    if (!!global.middlewares?.preAggrES) {
+      global.middlewares.preAggrES.forEach((middleware) => {
+        body = middleware(body);
       });
     }
 
