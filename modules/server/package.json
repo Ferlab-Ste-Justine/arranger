@@ -28,10 +28,10 @@
   },
   "homepage": "https://github.com/overture-stack/arranger#readme",
   "dependencies": {
+    "@elastic/elasticsearch": "^7.5.0",
     "@ferlab/arranger-admin": "^2.20.3",
     "@ferlab/arranger-mapping-utils": "^2.20.3",
     "@ferlab/arranger-schema": "^2.20.3",
-    "@elastic/elasticsearch": "^7.5.0",
     "apollo-server-core": "^2.14.2",
     "apollo-server-express": "^2.14.2",
     "babel-polyfill": "^6.26.0",
