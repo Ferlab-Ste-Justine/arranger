@@ -36,7 +36,7 @@ npm install && npm run prepare && npm publish
 specific for **server module**
 
 ```
-npm install --legacy-peer-deps
+npm install --legacy-peer-deps && npm run prepare && npm publish
 ```
 
 _Note: that step requires NPM access, ask front-end lead_
