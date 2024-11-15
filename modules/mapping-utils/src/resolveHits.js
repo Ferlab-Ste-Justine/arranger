@@ -243,18 +243,20 @@ export default ({ type, Parallel, getServerSideFilter }) =>
         body = middleware(body);
       });
     }
-    let { hits } = await esSearch(es)({
+
+    const _source = buildSource(fields, copyToSourceFields, body);
+
+    const queryToEs = {
       index: type.index,
       size: first,
       from: offset,
       track_total_hits: trackTotalHits,
-      _source: [
-        ...((fields.edges && Object.keys(fields.edges.node || {})) || []),
-        ...Object.values(copyToSourceFields),
-      ],
+      _source,
       track_scores: !!score,
       body,
-    });
+    }
+    console.log('[QUERY TO ES]', JSON.stringify(queryToEs))
+    let { hits } = await esSearch(es)(queryToEs);
 
     if (!!global.middlewares?.postES) {
       global.middlewares.postES.forEach((middleware) => {
@@ -274,3 +276,24 @@ export default ({ type, Parallel, getServerSideFilter }) =>
       total: () => hits.total.value,
     };
   };
+
+  const buildSource = (fields, copyToSourceFields, body) => {
+    let _source = [
+      ...((fields.edges && Object.keys(fields.edges.node || {})) || []),
+      ...Object.values(copyToSourceFields),
+    ];
+
+    // replace _source if specified in the query includes
+    if (body._source?.includes?.[0] !== "*") {
+      _source = body._source?.includes;
+    }
+
+    // remove fields from _source if specified in the query excludes
+    body._source?.excludes?.forEach((field) => {
+      const index = _source.indexOf(field);
+      if (index > -1) {
+        _source.splice(index, 1);
+      }
+    });
+    return _source;
+  }
