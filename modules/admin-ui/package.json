@@ -1,8 +1,8 @@
 {
   "name": "@arranger/admin-ui",
-  "version": "2.20.3",
+  "version": "2.20.4",
   "dependencies": {
-    "@ferlab/arranger-admin": "^2.20.3",
+    "@ferlab/arranger-admin": "^2.20.4",
     "@types/node": "^13.13.0",
     "apollo-boost": "^0.1.19",
     "apollo-client": "^2.5.1",

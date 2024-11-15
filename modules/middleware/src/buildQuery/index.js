@@ -297,6 +297,5 @@ export default function ({ nestedFields, filters: rawFilters }) {
     nestedFields,
     filter: normalizeFilters(rawFilters),
   });
-  console.log('SQON QUERY', JSON.stringify(v));
   return v;
 }
