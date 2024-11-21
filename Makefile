@@ -141,3 +141,43 @@ start:
 #############################################################
 format:
 	@./scripts/format-all.sh
+
+#############################################################
+#  Modules 
+#############################################################
+
+currentModuleVersion := $(shell grep "version" ./modules/admin/package.json | cut -d'"' -f 4)
+
+bump:
+	$(eval newModuleVersion := $(shell npm --prefix ./modules/middleware version patch | cut -d'v' -f 2))
+	echo "new version: `${newModuleVersion}`"
+	@sed -i '' 's/${currentModuleVersion}/${newModuleVersion}/g' ./modules/middleware/package.json
+	@sed -i '' 's/${currentModuleVersion}/${newModuleVersion}/g' ./modules/mapping-utils/package.json
+	@sed -i '' 's/${currentModuleVersion}/${newModuleVersion}/g' ./modules/schema/package.json
+	@sed -i '' 's/${currentModuleVersion}/${newModuleVersion}/g' ./modules/admin/package.json
+	@sed -i '' 's/${currentModuleVersion}/${newModuleVersion}/g' ./modules/admin-ui/package.json
+	@sed -i '' 's/${currentModuleVersion}/${newModuleVersion}/g' ./modules/server/package.json
+
+install_publish:
+	~/.nvm/nvm.sh use 15
+	npm cache clean --force
+
+	npm --prefix ./modules/middleware install ./modules/middleware
+	npm --prefix ./modules/middleware publish
+
+	npm --prefix ./modules/mapping-utils install ./modules/mapping-utils
+	npm --prefix ./modules/mapping-utils publish
+
+	npm --prefix ./modules/schema install ./modules/schema
+	npm --prefix ./modules/schema publish
+
+	npm --prefix ./modules/admin install ./modules/admin
+	npm --prefix ./modules/admin publish
+
+	npm --prefix ./modules/admin-ui install ./modules/admin-ui
+	npm --prefix ./modules/admin-ui publish
+
+	npm --prefix ./modules/server install ./modules/server --legacy-peer-deps
+	npm --prefix ./modules/server publish
+
+bump_publish: bump install_publish 
