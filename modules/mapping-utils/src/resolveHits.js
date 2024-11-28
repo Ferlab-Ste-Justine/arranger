@@ -239,9 +239,9 @@ export default ({ type, Parallel, getServerSideFilter }) =>
 
     const copyToSourceFields = findCopyToSourceFields(type.mapping);
     if (!!global.middlewares?.preES) {
-      global.middlewares.preES.forEach((middleware) => {
-        body = middleware(body);
-      });
+      for (const middleware of global.middlewares.preES) {
+        body = await middleware(body);
+      }
     }
 
     const _source = buildSource(fields, copyToSourceFields, body);
@@ -254,14 +254,14 @@ export default ({ type, Parallel, getServerSideFilter }) =>
       _source,
       track_scores: !!score,
       body,
-    }
-    console.log('[QUERY TO ES]', JSON.stringify(queryToEs))
+    };
+    console.log('[QUERY TO ES]', JSON.stringify(queryToEs));
     let { hits } = await esSearch(es)(queryToEs);
 
     if (!!global.middlewares?.postES) {
-      global.middlewares.postES.forEach((middleware) => {
-        body = middleware(body, hits);
-      });
+      for (const middleware of global.middlewares.postES) {
+        hits = await middleware(body, hits);
+      }
     }
 
     return {
@@ -277,23 +277,23 @@ export default ({ type, Parallel, getServerSideFilter }) =>
     };
   };
 
-  const buildSource = (fields, copyToSourceFields, body) => {
-    let _source = [
-      ...((fields.edges && Object.keys(fields.edges.node || {})) || []),
-      ...Object.values(copyToSourceFields),
-    ];
+const buildSource = (fields, copyToSourceFields, body) => {
+  let _source = [
+    ...((fields.edges && Object.keys(fields.edges.node || {})) || []),
+    ...Object.values(copyToSourceFields),
+  ];
 
-    // replace _source if specified in the query includes
-    if (body._source?.includes?.[0] !== "*") {
-      _source = body._source?.includes;
-    }
-
-    // remove fields from _source if specified in the query excludes
-    body._source?.excludes?.forEach((field) => {
-      const index = _source.indexOf(field);
-      if (index > -1) {
-        _source.splice(index, 1);
-      }
-    });
-    return _source;
+  // replace _source if specified in the query includes
+  if (body._source?.includes?.[0] !== '*') {
+    _source = body._source?.includes;
   }
+
+  // remove fields from _source if specified in the query excludes
+  body._source?.excludes?.forEach((field) => {
+    const index = _source.indexOf(field);
+    if (index > -1) {
+      _source.splice(index, 1);
+    }
+  });
+  return _source;
+};

@@ -1,6 +1,6 @@
 {
   "name": "@ferlab/arranger-mapping-utils",
-  "version": "2.20.5",
+  "version": "2.20.7",
   "description": "Transform Elasticsearch mappings",
   "main": "dist/index.js",
   "publishConfig": {
@@ -22,7 +22,7 @@
   },
   "homepage": "https://github.com/overture-stack/arranger#readme",
   "dependencies": {
-    "@ferlab/arranger-middleware": "^2.20.5",
+    "@ferlab/arranger-middleware": "^2.20.7",
     "babel-polyfill": "^6.26.0",
     "graphql-fields": "^2.0.3",
     "kind-of": "^6.0.3",
