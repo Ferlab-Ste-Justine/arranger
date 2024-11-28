@@ -239,9 +239,9 @@ export default ({ type, Parallel, getServerSideFilter }) =>
 
     const copyToSourceFields = findCopyToSourceFields(type.mapping);
     if (!!global.middlewares?.preES) {
-      global.middlewares.preES.forEach(async (middleware) => {
+      for (const middleware of global.middlewares.preES) {
         body = await middleware(body);
-      });
+      }
     }
 
     const _source = buildSource(fields, copyToSourceFields, body);
@@ -259,9 +259,9 @@ export default ({ type, Parallel, getServerSideFilter }) =>
     let { hits } = await esSearch(es)(queryToEs);
 
     if (!!global.middlewares?.postES) {
-      global.middlewares.postES.forEach(async (middleware) => {
+      for (const middleware of global.middlewares.postES) {
         hits = await middleware(body, hits);
-      });
+      }
     }
 
     return {
